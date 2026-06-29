@@ -3,9 +3,10 @@
   "type": "project",
   "require": {
     "php": "^8.2",
+    "barryvdh/laravel-dompdf": "^2.0",
     "laravel/framework": "^11.0",
-    "phpoffice/phpspreadsheet": "^2.1",
-    "barryvdh/laravel-dompdf": "^2.0"
+    "laravel/sanctum": "^4.3",
+    "phpoffice/phpspreadsheet": "^2.1"
   },
   "autoload": {
     "psr-4": {

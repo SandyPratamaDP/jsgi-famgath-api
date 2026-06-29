@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         // HandleCors is automatically included in Laravel 11's global middleware stack.
         // Behavior is controlled entirely by config/cors.php.
+        $middleware->alias([
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
