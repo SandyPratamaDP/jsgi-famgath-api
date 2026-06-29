@@ -10,9 +10,7 @@ return new class extends Migration
     {
         Schema::create('employees', function (Blueprint $table) {
             $table->id();
-            $table->string('nik', 20)->unique()->index();
-            $table->string('name', 150);
-            $table->string('department', 100);
+            $table->string('name', 150)->unique();
             $table->enum('employee_type', ['local', 'expat']);
             $table->integer('total_vehicles')->default(0);
             $table->integer('total_passengers')->default(1);
@@ -20,8 +18,8 @@ return new class extends Migration
             $table->integer('bus_number')->nullable();
             $table->boolean('is_pic_bus')->default(false);
             $table->integer('total_bus_passengers')->nullable();
-            $table->enum('attendance_status', ['absent', 'present'])->default('absent');
-            $table->timestamp('scanned_at')->nullable();
+            $table->string('pickup_point', 100)->nullable();
+            $table->string('pdf_filename')->nullable();
             $table->timestamps();
         });
     }
