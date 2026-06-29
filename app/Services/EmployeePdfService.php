@@ -55,6 +55,45 @@ class EmployeePdfService
     }
 
     /**
+     * Return the on-disk path if a cached PNG image exists, otherwise null.
+     */
+    public function cachedImagePath(Employee $employee): ?string
+    {
+        if (!$employee->pdf_filename) {
+            return null;
+        }
+
+        $path = storage_path('app/public/tickets/' . $this->imageFilename($employee->pdf_filename));
+        return file_exists($path) ? $path : null;
+    }
+
+    /**
+     * Render PNG from PDF (generating+caching the PDF if needed), return [bytes, filename].
+     */
+    public function renderImageAndCache(Employee $employee): array
+    {
+        // Reuse cached PDF bytes if available, otherwise render and cache first.
+        if ($cachedPdf = $this->cachedPath($employee)) {
+            $pdfBytes    = file_get_contents($cachedPdf);
+            $pdfFilename = $employee->pdf_filename;
+        } else {
+            [$pdfBytes, $pdfFilename] = $this->renderAndCache($employee);
+        }
+
+        $imageName = $this->imageFilename($pdfFilename);
+        $pngBytes  = $this->convertPdfToPng($pdfBytes);
+
+        $ticketDir = storage_path('app/public/tickets');
+        if (!is_dir($ticketDir)) {
+            mkdir($ticketDir, 0755, true);
+        }
+
+        file_put_contents($ticketDir . '/' . $imageName, $pngBytes);
+
+        return [$pngBytes, $imageName];
+    }
+
+    /**
      * Render, persist to disk, update the model's pdf_filename, and return [bytes, filename].
      */
     public function renderAndCache(Employee $employee): array
@@ -74,6 +113,24 @@ class EmployeePdfService
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────
+
+    private function imageFilename(string $pdfFilename): string
+    {
+        return str_replace('.pdf', '.png', $pdfFilename);
+    }
+
+    private function convertPdfToPng(string $pdfBytes): string
+    {
+        $imagick = new \Imagick();
+        $imagick->setResolution(200, 200);
+        $imagick->readImageBlob($pdfBytes);
+        $imagick->setImageBackgroundColor('white');
+        $imagick->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
+        $imagick->setImageFormat('png');
+        $png = $imagick->getImageBlob();
+        $imagick->clear();
+        return $png;
+    }
 
     private function render(Employee $employee, string $logoData, string $qrData): array
     {

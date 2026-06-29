@@ -90,4 +90,18 @@ class EmployeeController extends Controller
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
+
+    public function downloadSingleImage(Employee $employee)
+    {
+        if ($cachedPath = $this->pdfService->cachedImagePath($employee)) {
+            return response()->download($cachedPath, basename($cachedPath));
+        }
+
+        [$bytes, $filename] = $this->pdfService->renderImageAndCache($employee);
+
+        return response($bytes, 200, [
+            'Content-Type'        => 'image/png',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
 }

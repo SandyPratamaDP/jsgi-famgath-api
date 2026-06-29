@@ -23,8 +23,9 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     // Panitia only
     Route::middleware('role:panitia')->group(function () {
-        Route::post('import-employees',        [EmployeeController::class, 'import']);
-        Route::post('employees/generate-pdfs', [EmployeeController::class, 'generateAndDownloadPdfs']);
-        Route::get('employees/{employee}/pdf', [EmployeeController::class, 'downloadSinglePdf']);
+        Route::post('import-employees',          [EmployeeController::class, 'import']);
+        Route::post('employees/generate-pdfs',   [EmployeeController::class, 'generateAndDownloadPdfs']);
+        Route::get('employees/{employee}/pdf',   [EmployeeController::class, 'downloadSinglePdf']);
+        Route::get('employees/{employee}/image', [EmployeeController::class, 'downloadSingleImage']);
     });
 });
