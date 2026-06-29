@@ -89,17 +89,28 @@ class EmployeeController extends Controller
         return response()->json(['data' => $employee->fresh()]);
     }
 
-    // ─── API: bulk PDF download (private car + bus PIC only) ─────────────────
+    // ─── API: generate + store + download all PDFs as ZIP ────────────────────
 
-    public function downloadBulkPdfs(Request $request)
+    public function generateAndDownloadPdfs()
     {
+        // Override PHP CLI's 30s default — PDF generation for 100+ employees takes longer
+        set_time_limit(0);
+        ini_set('memory_limit', '512M');
+
         $employees = Employee::query()
             ->where(fn ($q) => $q->where('transport_type', 'private_car')->orWhere('is_pic_bus', true))
             ->orderBy('name')
             ->get();
 
         if ($employees->isEmpty()) {
-            return response()->json(['message' => 'No eligible employees found for PDF export.'], 404);
+            return response()->json(['message' => 'Tidak ada karyawan yang eligible untuk dicetak.'], 404);
+        }
+
+        [$logoData, $qrData] = $this->buildImageDataUris();
+
+        $ticketDir = storage_path('app/public/tickets');
+        if (!is_dir($ticketDir)) {
+            mkdir($ticketDir, 0755, true);
         }
 
         $zipPath = storage_path('app/public/ticket-bundle.zip');
@@ -107,13 +118,100 @@ class EmployeeController extends Controller
         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         foreach ($employees as $employee) {
-            $pdf      = Pdf::loadView('pdf.ticket', ['employee' => $employee]);
-            $filename = sprintf('%s_%s_ticket.pdf', $employee->nik, str_replace(' ', '_', strtolower($employee->name)));
-            $zip->addFromString($filename, $pdf->output());
+            $pdf = Pdf::loadView('pdf.ticket', [
+                'employee' => $employee,
+                'logoData' => $logoData,
+                'qrData'   => $qrData,
+            ]);
+
+            $safeName = preg_replace('/[^a-z0-9]+/', '_', strtolower($employee->name));
+            $filename = sprintf('%s_ticket.pdf', $safeName);
+            $pdfBytes = $pdf->output();
+            unset($pdf);
+
+            file_put_contents($ticketDir . '/' . $filename, $pdfBytes);
+            $zip->addFromString($filename, $pdfBytes);
+            unset($pdfBytes);
+
+            // Save filename to DB so single-download can serve from storage
+            $employee->update(['pdf_filename' => $filename]);
         }
 
         $zip->close();
-        return response()->download($zipPath, 'family-gathering-tickets.zip')->deleteFileAfterSend(true);
+
+        return response()->download($zipPath, 'family-gathering-tickets.zip')
+                         ->deleteFileAfterSend(true);
+    }
+
+    // ─── API: download single employee PDF (from storage if ready, else generate) ──
+
+    public function downloadSinglePdf(Employee $employee)
+    {
+        $ticketDir = storage_path('app/public/tickets');
+        $storedPath = $employee->pdf_filename
+            ? $ticketDir . '/' . $employee->pdf_filename
+            : null;
+
+        // Serve cached file if it exists on disk
+        if ($storedPath && file_exists($storedPath)) {
+            return response()->download($storedPath, $employee->pdf_filename);
+        }
+
+        // Not yet generated — render on the fly and cache it
+        [$logoData, $qrData] = $this->buildImageDataUris();
+
+        $pdf = Pdf::loadView('pdf.ticket', [
+            'employee' => $employee,
+            'logoData' => $logoData,
+            'qrData'   => $qrData,
+        ]);
+
+        $safeName = preg_replace('/[^a-z0-9]+/', '_', strtolower($employee->name));
+        $filename = sprintf('%s_ticket.pdf', $safeName);
+        $pdfBytes = $pdf->output();
+        unset($pdf);
+
+        if (!is_dir($ticketDir)) {
+            mkdir($ticketDir, 0755, true);
+        }
+
+        file_put_contents($ticketDir . '/' . $filename, $pdfBytes);
+        $employee->update(['pdf_filename' => $filename]);
+
+        return response($pdfBytes, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    // ─── Helper: build base64 data URIs for logo + QR ─────────────────────────
+
+    protected function buildImageDataUris(): array
+    {
+        // Logo: convert webp → png via GD so dompdf can render it reliably
+        $logoPath = storage_path('app/public/logo.webp');
+        if (file_exists($logoPath) && function_exists('imagecreatefromwebp')) {
+            $img = @imagecreatefromwebp($logoPath);
+            if ($img) {
+                ob_start();
+                imagepng($img);
+                $logoData = 'data:image/png;base64,' . base64_encode(ob_get_clean());
+                unset($img); // imagedestroy deprecated in PHP 8.5+
+            } else {
+                $logoData = 'data:image/webp;base64,' . base64_encode(file_get_contents($logoPath));
+            }
+        } elseif (file_exists($logoPath)) {
+            $logoData = 'data:image/webp;base64,' . base64_encode(file_get_contents($logoPath));
+        } else {
+            $logoData = '';
+        }
+
+        $qrPath = storage_path('app/public/ancol-qr.png');
+        $qrData = file_exists($qrPath)
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($qrPath))
+            : '';
+
+        return [$logoData, $qrData];
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

@@ -8,5 +8,6 @@ Route::prefix('v1')->group(function () {
     Route::get('employees', [EmployeeController::class, 'index']);
     Route::get('employees/search', [EmployeeController::class, 'search']);
     Route::patch('employees/{employee}', [EmployeeController::class, 'update']);
-    Route::post('employees/bulk-pdf', [EmployeeController::class, 'downloadBulkPdfs']);
+    Route::post('employees/generate-pdfs', [EmployeeController::class, 'generateAndDownloadPdfs']);
+    Route::get('employees/{employee}/pdf', [EmployeeController::class, 'downloadSinglePdf']);
 });

@@ -17,6 +17,7 @@ class Employee extends Model
         'is_pic_bus',
         'total_bus_passengers',
         'pickup_point',
+        'pdf_filename',
     ];
 
     protected $casts = [
