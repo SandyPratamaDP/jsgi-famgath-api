@@ -31,7 +31,12 @@ class EmployeePdfService
 
             file_put_contents($ticketDir . '/' . $filename, $pdfBytes);
             $zip->addFromString($filename, $pdfBytes);
-            unset($pdfBytes);
+
+            // Cache PNG alongside PDF so individual image downloads are instant.
+            $pngBytes  = $this->convertPdfToPng($pdfBytes);
+            $imageName = $this->imageFilename($filename);
+            file_put_contents($ticketDir . '/' . $imageName, $pngBytes);
+            unset($pdfBytes, $pngBytes);
 
             $employee->update(['pdf_filename' => $filename]);
         }
