@@ -22,7 +22,7 @@ class EmployeeController extends Controller
         return response()->json(['data' => $employees]);
     }
 
-    // ─── API: search by name or NIK ──────────────────────────────────────────
+    // ─── API: search by name ─────────────────────────────────────────────────
 
     public function search(Request $request)
     {
@@ -49,20 +49,20 @@ class EmployeeController extends Controller
         // Step 1 ─ extract Bus PIC lookup [pic_name_lower => {bus_number, total_bus_passengers}]
         $busGroups = $this->buildBusGroups($sheets);
 
-        // Step 2 ─ extract private car employees from Pribadi Local / Pribadi Expat
-        //          returns [nik => {name, department, employee_type, vehicles, headcount, transport_type}]
+        // Step 2 ─ mark private car employees from Pribadi Local / Pribadi Expat
+        //          returns [lowercase_name => {name, employee_type, total_vehicles}]
         $privateCarMap = $this->buildPrivateCarMap($sheets);
 
-        // Step 3 ─ extract ALL unique employees from the master attendance sheet
-        //          ("Data Terakhir Kary. ikut FamGat") — one row per family member
-        //          returns [nik => {name, headcount}]
+        // Step 3 ─ count headcount from master sheet by name
+        //          one row per person — each occurrence increments headcount by 1
+        //          returns [lowercase_name => {name, headcount}]
         $masterList = $this->buildMasterList($sheets);
 
         // Step 4 ─ merge all sources into final employee records
         $records = $this->buildAllEmployees($masterList, $privateCarMap, $busGroups);
 
         foreach ($records as $data) {
-            Employee::updateOrCreate(['nik' => $data['nik']], $data);
+            Employee::updateOrCreate(['name' => $data['name']], $data);
         }
 
         return response()->json([
@@ -71,23 +71,18 @@ class EmployeeController extends Controller
         ]);
     }
 
-    // ─── API: field-level update (attendance, vehicle switch) ─────────────────
+    // ─── API: field-level update (vehicle switch) ────────────────────────────
 
     public function update(Request $request, Employee $employee)
     {
         $attributes = $request->validate([
-            'total_vehicles'    => 'sometimes|integer|min:0',
-            'transport_type'    => 'sometimes|in:private_car,bus',
-            'attendance_status' => 'sometimes|in:absent,present',
-            'total_passengers'  => 'sometimes|integer|min:1',
+            'total_vehicles'   => 'sometimes|integer|min:0',
+            'transport_type'   => 'sometimes|in:private_car,bus',
+            'total_passengers' => 'sometimes|integer|min:1',
         ]);
 
         if (array_key_exists('total_vehicles', $attributes) && !array_key_exists('transport_type', $attributes)) {
             $attributes['transport_type'] = $attributes['total_vehicles'] >= 1 ? 'private_car' : 'bus';
-        }
-
-        if (($attributes['attendance_status'] ?? null) === 'present' && $employee->attendance_status !== 'present') {
-            $attributes['scanned_at'] = now();
         }
 
         $employee->update($attributes);
@@ -162,38 +157,34 @@ class EmployeeController extends Controller
 
     /**
      * Read Pribadi Local and Pribadi Expat sheets.
-     * Returns [nik => [...employee fields...]]
+     * Only marks who uses private car and how many vehicles — no headcount taken here.
+     * Returns [lowercase_name => ['name' => string, 'employee_type' => string, 'total_vehicles' => int]]
      */
     protected function buildPrivateCarMap(array $sheets): array
     {
         $map = [];
 
         foreach ($sheets as $sheetName => $rows) {
-            $lower = strtolower($sheetName);
+            $lower   = strtolower($sheetName);
+            $isExpat = stripos($lower, 'expat') !== false;
+
             if (stripos($lower, 'pribadi') === false &&
                 stripos($lower, 'local')   === false &&
                 stripos($lower, 'expat')   === false) continue;
 
-            $isExpat = stripos($lower, 'expat') !== false;
             [$headers, $dataRows] = $this->extractHeadersAndRows($rows);
 
             foreach ($dataRows as $row) {
                 $row  = $this->combineRow($headers, (array) $row);
-                $nik  = $this->col($row, ['nik', 'emp_nik', 'employee_id', 'no_induk']);
                 $name = $this->col($row, ['nama', 'name', 'emp_name', 'full_name']);
-                if (!$nik || !$name) continue;
+                if (!$name) continue;
 
-                $vehicles  = (int) ($this->col($row, ['jumlah_kendaraan', 'total_vehicles', 'vehicle_count']) ?: 0);
-                $headcount = (int) ($this->col($row, ['jumlah_anggota_keluarga', 'family_member', 'total_passengers', 'jumlah_penumpang', 'headcount']) ?: 1);
-                $dept      = $this->col($row, ['department', 'departemen', 'unit']) ?: 'Unknown';
+                $vehicles = (int) ($this->col($row, ['jumlah_kendaraan', 'total_vehicles', 'vehicle_count']) ?: 0);
 
-                $map[$nik] = [
-                    'name'          => $name,
-                    'department'    => $dept,
-                    'employee_type' => $isExpat ? 'expat' : 'local',
-                    'total_vehicles'  => $vehicles,
-                    'total_passengers' => $headcount,
-                    'transport_type'  => $vehicles >= 1 ? 'private_car' : 'bus',
+                $map[strtolower(trim($name))] = [
+                    'name'           => $name,
+                    'employee_type'  => $isExpat ? 'expat' : 'local',
+                    'total_vehicles' => $vehicles,
                 ];
             }
         }
@@ -202,10 +193,9 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Read the master attendance sheet ("Data Terakhir Kary. ikut FamGat").
-     * That sheet has one row per family member, so we deduplicate by NIK
-     * and count rows as headcount.
-     * Returns [nik => ['name' => string, 'headcount' => int]]
+     * Read the master sheet ("Data Terakhir Kary. ikut FamGat").
+     * Only reads the name column. Each row = +1 headcount for that name.
+     * Returns [lowercase_name => ['name' => string, 'headcount' => int]]
      */
     protected function buildMasterList(array $sheets): array
     {
@@ -213,8 +203,7 @@ class EmployeeController extends Controller
 
         foreach ($sheets as $sheetName => $rows) {
             $lower = strtolower($sheetName);
-            // Skip the specialised sheets we already handle
-            if (stripos($lower, 'bus')    !== false ||
+            if (stripos($lower, 'bus')     !== false ||
                 stripos($lower, 'pribadi') !== false ||
                 stripos($lower, 'local')   !== false ||
                 stripos($lower, 'expat')   !== false ||
@@ -224,15 +213,14 @@ class EmployeeController extends Controller
 
             foreach ($dataRows as $row) {
                 $row  = $this->combineRow($headers, (array) $row);
-                $nik  = $this->col($row, ['nik', 'emp_nik', 'employee_id', 'no_induk']);
                 $name = $this->col($row, ['nama', 'name', 'emp_name', 'full_name']);
-                if (!$nik || !$name) continue;
+                if (!$name) continue;
 
-                if (!isset($masterList[$nik])) {
-                    $masterList[$nik] = ['name' => $name, 'headcount' => 0];
+                $nameKey = strtolower(trim($name));
+                if (!isset($masterList[$nameKey])) {
+                    $masterList[$nameKey] = ['name' => $name, 'headcount' => 0];
                 }
-                // Each row represents one family member (including the employee themselves)
-                $masterList[$nik]['headcount']++;
+                $masterList[$nameKey]['headcount']++;
             }
         }
 
@@ -241,43 +229,38 @@ class EmployeeController extends Controller
 
     /**
      * Combine master list + private car map + bus groups into the final record set.
+     * Both maps are keyed by lowercase name. Headcount always comes from the master list.
      */
     protected function buildAllEmployees(array $masterList, array $privateCarMap, array $busGroups): array
     {
-        $allNiks = array_unique(array_merge(array_keys($masterList), array_keys($privateCarMap)));
+        // Only iterate names from master sheet — Pribadi sheet only updates transport, never inserts
         $records = [];
 
-        foreach ($allNiks as $nik) {
-            if (isset($privateCarMap[$nik])) {
-                $pc        = $privateCarMap[$nik];
-                $name      = $pc['name'];
-                $dept      = $pc['department'];
-                $empType   = $pc['employee_type'];
-                $vehicles  = $pc['total_vehicles'];
-                $headcount = $pc['total_passengers'];
-                $transport = $pc['transport_type'];
+        foreach (array_keys($masterList) as $nameKey) {
+            $hasMaster = true;
+            $hasCar    = isset($privateCarMap[$nameKey]);
+
+            $name      = $hasCar ? $privateCarMap[$nameKey]['name'] : $masterList[$nameKey]['name'];
+            $headcount = $hasMaster ? max(1, $masterList[$nameKey]['headcount']) : 1;
+
+            if ($hasCar) {
+                $empType  = $privateCarMap[$nameKey]['employee_type'];
+                $vehicles = $privateCarMap[$nameKey]['total_vehicles'];
+                $transport = $vehicles >= 1 ? 'private_car' : 'bus';
             } else {
-                $master    = $masterList[$nik];
-                $name      = $master['name'];
-                $dept      = 'Unknown';
-                // Infer employee type from NIK prefix (1xxxxx = expat, 2xxxxx = local)
-                $empType   = str_starts_with((string) $nik, '1') ? 'expat' : 'local';
-                $vehicles  = 0;
-                $headcount = max(1, $master['headcount']);
+                $empType  = 'local';
+                $vehicles = 0;
                 $transport = 'bus';
             }
 
-            // Cross-reference with Bus PIC list
-            $nameKey         = strtolower(trim($name));
-            $isPicBus        = isset($busGroups[$nameKey]);
-            $busNumber       = $isPicBus ? $busGroups[$nameKey]['bus_number']           : null;
-            $totalBusPass    = $isPicBus ? $busGroups[$nameKey]['total_bus_passengers'] : null;
-            $pickupPoint     = $isPicBus ? $busGroups[$nameKey]['pickup_point']         : null;
+            // Cross-reference with Bus PIC list ($nameKey is already lowercase)
+            $isPicBus     = isset($busGroups[$nameKey]);
+            $busNumber    = $isPicBus ? $busGroups[$nameKey]['bus_number']           : null;
+            $totalBusPass = $isPicBus ? $busGroups[$nameKey]['total_bus_passengers'] : null;
+            $pickupPoint  = $isPicBus ? $busGroups[$nameKey]['pickup_point']         : null;
 
             $records[] = [
-                'nik'                  => $nik,
                 'name'                 => $name,
-                'department'           => $dept,
                 'employee_type'        => $empType,
                 'total_vehicles'       => $vehicles,
                 'total_passengers'     => $headcount,
@@ -286,7 +269,6 @@ class EmployeeController extends Controller
                 'is_pic_bus'           => $isPicBus,
                 'total_bus_passengers' => $totalBusPass,
                 'pickup_point'         => $pickupPoint,
-                'attendance_status'    => 'absent',
             ];
         }
 
