@@ -328,6 +328,9 @@ class EmployeeController extends Controller
     /**
      * Combine master list + private car map + bus groups into the final record set.
      * Both maps are keyed by lowercase name. Headcount always comes from the master list.
+     *
+     * Expat rule: headcount +1 to account for the company-provided driver.
+     * Local rule: transport status updated only — headcount unchanged from master list.
      */
     protected function buildAllEmployees(array $masterList, array $privateCarMap, array $busGroups): array
     {
@@ -345,6 +348,11 @@ class EmployeeController extends Controller
                 $empType  = $privateCarMap[$nameKey]['employee_type'];
                 $vehicles = $privateCarMap[$nameKey]['total_vehicles'];
                 $transport = $vehicles >= 1 ? 'private_car' : 'bus';
+
+                // Expat employees are accompanied by a company driver → add 1 to headcount
+                if ($empType === 'expat') {
+                    $headcount += 1;
+                }
             } else {
                 $empType  = 'local';
                 $vehicles = 0;
