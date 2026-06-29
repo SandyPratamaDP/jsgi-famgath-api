@@ -13,6 +13,7 @@ class Employee extends Model
         'total_vehicles',
         'total_passengers',
         'transport_type',
+        'switched_from_bus',
         'bus_number',
         'is_pic_bus',
         'total_bus_passengers',
@@ -25,6 +26,7 @@ class Employee extends Model
         'total_passengers'     => 'integer',
         'bus_number'           => 'integer',
         'is_pic_bus'           => 'boolean',
+        'switched_from_bus'    => 'boolean',
         'total_bus_passengers' => 'integer',
     ];
 

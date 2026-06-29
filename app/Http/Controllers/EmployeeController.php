@@ -85,6 +85,12 @@ class EmployeeController extends Controller
             $attributes['transport_type'] = $attributes['total_vehicles'] >= 1 ? 'private_car' : 'bus';
         }
 
+        // Mark employees who were originally on the bus but switched on the day-of-event.
+        // Only set when switching away from bus — never cleared by this endpoint.
+        if (($attributes['transport_type'] ?? null) === 'private_car' && $employee->transport_type === 'bus') {
+            $attributes['switched_from_bus'] = true;
+        }
+
         $employee->update($attributes);
         return response()->json(['data' => $employee->fresh()]);
     }
