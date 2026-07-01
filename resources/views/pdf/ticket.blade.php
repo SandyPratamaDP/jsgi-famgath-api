@@ -29,6 +29,7 @@
         .strip { height: 5px; border-radius: 12px 12px 0 0; }
         .strip-car { background: #0284c7; }
         .strip-bus { background: #7c3aed; }
+        .strip-additional { background: #ea580c; }
 
         /* ── Header ── */
         .header { background: #0f172a; padding: 14px 20px; }
@@ -41,6 +42,7 @@
         }
         .badge-car { background: #0284c7; }
         .badge-bus { background: #7c3aed; }
+        .badge-additional { background: #ea580c; }
 
         /* ── Name section ── */
         .name-section { padding: 16px 20px 12px; border-bottom: 1px solid #f1f5f9; }
@@ -106,6 +108,8 @@
             font-size: 8.5px; color: #94a3b8;
         }
         .footer-bold { color: #0f172a; font-weight: bold; }
+
+        .card-additional { margin-top: 10mm; }
     </style>
 </head>
 <body>
@@ -207,6 +211,9 @@
                 Kartu ini merupakan tiket masuk resmi ke kawasan Ancol untuk keperluan
                 Family Gathering JSGI 2026. Harap dijaga dan tunjukkan kepada petugas
                 saat memasuki area.
+                @if($employee->has_below_two_children ?? false)
+                    Anak di bawah 2 tahun tidak dihitung dalam jumlah orang dan tidak perlu membayar tiket.
+                @endif
             </div>
         </div>
 
@@ -225,6 +232,97 @@
         </div>
 
     </div>
+
+    {{-- Additional ticket: guests outside the employee's core family --}}
+    @if(($employee->additional_members ?? 0) > 0)
+        <div class="card card-additional">
+
+            <div class="strip strip-additional"></div>
+
+            <div class="header">
+                <table width="100%" style="border-collapse:collapse;">
+                    <tr>
+                        <td width="58" style="vertical-align:middle;">
+                            <img src="{{ $logoData }}" width="48" height="48"
+                                 style="display:block; border-radius:6px;" alt="Logo" />
+                        </td>
+                        <td style="vertical-align:middle; padding-left:12px;">
+                            <div class="header-title">Family Gathering JSGI 2026</div>
+                            <div class="header-sub">PT. JFE Steel Galvanizing Indonesia</div>
+                        </td>
+                        <td style="vertical-align:middle; text-align:right; white-space:nowrap;">
+                            <span class="badge badge-additional">Tiket Tambahan</span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="name-section">
+                <div class="name-label">Nama Karyawan</div>
+                <div class="name-value">{{ $employee->name }}</div>
+            </div>
+
+            <div style="padding: 14px 20px 16px;">
+                <table width="100%" style="border-collapse:collapse;">
+                    <tr>
+
+                        <td style="vertical-align:top; padding-right:16px;">
+
+                            {{-- Jumlah Orang (additional guests only) --}}
+                            <div class="stat-box">
+                                <div class="stat-label">Jumlah Orang</div>
+                                <div class="stat-number color-blue">
+                                    {{ $employee->additional_members }}
+                                    <span class="stat-unit">orang</span>
+                                </div>
+                            </div>
+
+                            {{-- Additional guests always arrange & pay for their own vehicle --}}
+                            <div class="stat-box">
+                                <div class="stat-label">Jumlah Kendaraan</div>
+                                <div class="stat-number color-car">
+                                    0
+                                    <span class="stat-unit">unit</span>
+                                </div>
+                            </div>
+
+                        </td>
+
+                        <td width="178" style="vertical-align:middle; text-align:center;">
+                            <div class="qr-wrap">
+                                <img src="{{ $qrData }}" width="160" height="160" alt="QR Ancol" />
+                            </div>
+                            <div class="qr-caption">QR Masuk Ancol</div>
+                        </td>
+
+                    </tr>
+                </table>
+
+                <div class="divider"></div>
+
+                <div style="font-size:8px; color:#94a3b8; font-style:italic;">
+                    Tiket tambahan untuk peserta rekreasi di luar keluarga inti karyawan
+                    (bundle Seaworld, Ancol, dan Samudra). Kendaraan peserta tambahan
+                    diatur dan dibayar secara terpisah.
+                </div>
+            </div>
+
+            <div class="footer">
+                <table width="100%" style="border-collapse:collapse;">
+                    <tr>
+                        <td>Family Gathering JSGI 2026 &middot; Ancol, Jakarta</td>
+                        <td style="text-align:right; white-space:nowrap;">
+                            Dicetak: {{ now()->format('d M Y') }}
+                            &nbsp;&nbsp;
+                            <span class="footer-bold">Berlaku 11 Juli 2026</span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+        </div>
+    @endif
+
 </div>
 </body>
 </html>

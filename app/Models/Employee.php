@@ -12,6 +12,8 @@ class Employee extends Model
         'employee_type',
         'total_vehicles',
         'total_passengers',
+        'additional_members',
+        'has_below_two_children',
         'transport_type',
         'switched_from_bus',
         'bus_number',
@@ -24,6 +26,8 @@ class Employee extends Model
     protected $casts = [
         'total_vehicles'       => 'integer',
         'total_passengers'     => 'integer',
+        'additional_members'   => 'integer',
+        'has_below_two_children' => 'boolean',
         'bus_number'           => 'integer',
         'is_pic_bus'           => 'boolean',
         'switched_from_bus'    => 'boolean',

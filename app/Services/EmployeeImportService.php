@@ -18,11 +18,12 @@ class EmployeeImportService
             $sheets[$sheet->getTitle()] = collect($sheet->toArray());
         }
 
-        $busGroups     = $this->buildBusGroups($sheets);
-        $privateCarMap = $this->buildPrivateCarMap($sheets);
-        $masterList    = $this->buildMasterList($sheets);
-        $belowTwoMap   = $this->buildBelowTwoMap($sheets);
-        $records       = $this->buildAllEmployees($masterList, $privateCarMap, $busGroups, $belowTwoMap);
+        $busGroups        = $this->buildBusGroups($sheets);
+        $privateCarMap    = $this->buildPrivateCarMap($sheets);
+        $masterList       = $this->buildMasterList($sheets);
+        $belowTwoMap      = $this->buildBelowTwoMap($sheets);
+        $additionalMap    = $this->buildAdditionalTicketMap($sheets);
+        $records          = $this->buildAllEmployees($masterList, $privateCarMap, $busGroups, $belowTwoMap, $additionalMap);
 
         foreach ($records as $data) {
             Employee::updateOrCreate(['name' => $data['name']], $data);
@@ -117,7 +118,8 @@ class EmployeeImportService
                 stripos($lower, 'local')   !== false ||
                 stripos($lower, 'expat')   !== false ||
                 stripos($lower, 'email')   !== false ||
-                stripos($lower, 'below')   !== false) continue;
+                stripos($lower, 'below')   !== false ||
+                stripos($lower, 'additional') !== false) continue;
 
             [$headers, $dataRows] = $this->extractHeadersAndRows($rows);
 
@@ -164,13 +166,45 @@ class EmployeeImportService
     }
 
     /**
-     * Merge master list + private car map + bus groups + below-2 map into final employee records.
+     * Read the "Additional Ticket" sheet. Columns: "Nama Lengkap", "Additional Ticket Famgath"
+     * (count of extra recreation tickets bought for people outside the employee's core family).
+     * Returns [lowercase_name => additional_ticket_count]
+     */
+    private function buildAdditionalTicketMap(array $sheets): array
+    {
+        $map = [];
+
+        foreach ($sheets as $sheetName => $rows) {
+            if (stripos($sheetName, 'additional') === false) continue;
+
+            [$headers, $dataRows] = $this->extractHeadersAndRows($rows);
+
+            foreach ($dataRows as $row) {
+                $row  = $this->combineRow($headers, (array) $row);
+                $name = $this->col($row, ['nama_lengkap', 'nama', 'name', 'emp_name', 'full_name']);
+                if (!$name) continue;
+
+                $count = (int) ($this->col($row, ['additional_ticket_famgath', 'additional_ticket']) ?: 0);
+
+                $nameKey = strtolower(trim($name));
+                $map[$nameKey] = ($map[$nameKey] ?? 0) + $count;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Merge master list + private car map + bus groups + below-2 map + additional-ticket map
+     * into final employee records.
      *
      * Expat rule: headcount +1 to account for the company-provided driver.
      * Below-2 rule: headcount -1 per matching child, since infants under 2 don't need a ticket.
+     * Additional-ticket rule: additional_members holds guests outside the core family; their
+     * vehicles are paid for separately, so they never affect total_vehicles.
      * switched_from_bus is intentionally excluded — import never resets a flag set at the gate.
      */
-    private function buildAllEmployees(array $masterList, array $privateCarMap, array $busGroups, array $belowTwoMap = []): array
+    private function buildAllEmployees(array $masterList, array $privateCarMap, array $busGroups, array $belowTwoMap = [], array $additionalMap = []): array
     {
         $records = [];
 
@@ -206,7 +240,9 @@ class EmployeeImportService
                 'name'                 => $name,
                 'employee_type'        => $empType,
                 'total_vehicles'       => $vehicles,
-                'total_passengers'     => $headcount,
+                'total_passengers'       => $headcount,
+                'additional_members'     => $additionalMap[$nameKey] ?? 0,
+                'has_below_two_children' => ($belowTwoMap[$nameKey] ?? 0) > 0,
                 'transport_type'       => $transport,
                 'bus_number'           => $busNumber,
                 'is_pic_bus'           => $isPicBus,
@@ -222,7 +258,7 @@ class EmployeeImportService
 
     private function extractHeadersAndRows($rows): array
     {
-        $knownWords  = ['nik', 'emp nik', 'bus', 'pic', 'no', 'nama', 'name'];
+        $knownWords  = ['nik', 'emp nik', 'bus', 'pic', 'no', 'nama', 'name', 'nama lengkap'];
         $headerIndex = 0;
 
         foreach ($rows as $index => $row) {
