@@ -21,7 +21,8 @@ class EmployeeImportService
         $busGroups     = $this->buildBusGroups($sheets);
         $privateCarMap = $this->buildPrivateCarMap($sheets);
         $masterList    = $this->buildMasterList($sheets);
-        $records       = $this->buildAllEmployees($masterList, $privateCarMap, $busGroups);
+        $belowTwoMap   = $this->buildBelowTwoMap($sheets);
+        $records       = $this->buildAllEmployees($masterList, $privateCarMap, $busGroups, $belowTwoMap);
 
         foreach ($records as $data) {
             Employee::updateOrCreate(['name' => $data['name']], $data);
@@ -115,7 +116,8 @@ class EmployeeImportService
                 stripos($lower, 'pribadi') !== false ||
                 stripos($lower, 'local')   !== false ||
                 stripos($lower, 'expat')   !== false ||
-                stripos($lower, 'email')   !== false) continue;
+                stripos($lower, 'email')   !== false ||
+                stripos($lower, 'below')   !== false) continue;
 
             [$headers, $dataRows] = $this->extractHeadersAndRows($rows);
 
@@ -136,12 +138,39 @@ class EmployeeImportService
     }
 
     /**
-     * Merge master list + private car map + bus groups into final employee records.
+     * Read the "Below 2" sheet. Each row is a family member under 2 years old,
+     * who doesn't need a ticket. Returns [lowercase_name => count_of_children_under_2]
+     */
+    private function buildBelowTwoMap(array $sheets): array
+    {
+        $map = [];
+
+        foreach ($sheets as $sheetName => $rows) {
+            if (stripos($sheetName, 'below') === false) continue;
+
+            [$headers, $dataRows] = $this->extractHeadersAndRows($rows);
+
+            foreach ($dataRows as $row) {
+                $row  = $this->combineRow($headers, (array) $row);
+                $name = $this->col($row, ['nama', 'name', 'emp_name', 'full_name']);
+                if (!$name) continue;
+
+                $nameKey = strtolower(trim($name));
+                $map[$nameKey] = ($map[$nameKey] ?? 0) + 1;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Merge master list + private car map + bus groups + below-2 map into final employee records.
      *
      * Expat rule: headcount +1 to account for the company-provided driver.
+     * Below-2 rule: headcount -1 per matching child, since infants under 2 don't need a ticket.
      * switched_from_bus is intentionally excluded — import never resets a flag set at the gate.
      */
-    private function buildAllEmployees(array $masterList, array $privateCarMap, array $busGroups): array
+    private function buildAllEmployees(array $masterList, array $privateCarMap, array $busGroups, array $belowTwoMap = []): array
     {
         $records = [];
 
@@ -165,6 +194,8 @@ class EmployeeImportService
                 $vehicles  = 0;
                 $transport = 'bus';
             }
+
+            $headcount = max(0, $headcount - ($belowTwoMap[$nameKey] ?? 0));
 
             $isPicBus     = isset($busGroups[$nameKey]);
             $busNumber    = $isPicBus ? $busGroups[$nameKey]['bus_number']           : null;
