@@ -211,10 +211,13 @@
                 Kartu ini merupakan tiket masuk resmi ke kawasan Ancol untuk keperluan
                 Family Gathering JSGI 2026. Harap dijaga dan tunjukkan kepada petugas
                 saat memasuki area.
-                @if($employee->has_below_two_children ?? false)
-                    Anak di bawah 2 tahun tidak dihitung dalam jumlah orang dan tidak perlu membayar tiket.
-                @endif
             </div>
+
+            @if($employee->has_below_two_children ?? false)
+                <div style="margin-top:8px; background:#fffbeb; border:1px solid #fbbf24; border-radius:6px; padding:6px 10px; font-size:9px; font-weight:bold; color:#92400e;">
+                    PENTING: Anak di bawah 2 tahun tidak dihitung dalam jumlah orang dan tidak perlu membayar tiket.
+                </div>
+            @endif
         </div>
 
         {{-- Footer --}}
