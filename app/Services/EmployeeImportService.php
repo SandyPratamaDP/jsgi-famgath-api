@@ -23,7 +23,8 @@ class EmployeeImportService
         $masterList       = $this->buildMasterList($sheets);
         $belowTwoMap      = $this->buildBelowTwoMap($sheets);
         $additionalMap    = $this->buildAdditionalTicketMap($sheets);
-        $records          = $this->buildAllEmployees($masterList, $privateCarMap, $busGroups, $belowTwoMap, $additionalMap);
+        $emailMap         = $this->buildEmailMap($sheets);
+        $records          = $this->buildAllEmployees($masterList, $privateCarMap, $busGroups, $belowTwoMap, $additionalMap, $emailMap);
 
         foreach ($records as $data) {
             Employee::updateOrCreate(['name' => $data['name']], $data);
@@ -195,6 +196,33 @@ class EmployeeImportService
     }
 
     /**
+     * Read the "Data Email" sheet. Columns: NIK, Name, Email Address.
+     * Used to send tickets to employees for self-printing.
+     * Returns [lowercase_name => email]
+     */
+    private function buildEmailMap(array $sheets): array
+    {
+        $map = [];
+
+        foreach ($sheets as $sheetName => $rows) {
+            if (stripos($sheetName, 'email') === false) continue;
+
+            [$headers, $dataRows] = $this->extractHeadersAndRows($rows);
+
+            foreach ($dataRows as $row) {
+                $row   = $this->combineRow($headers, (array) $row);
+                $name  = $this->col($row, ['nama', 'name', 'emp_name', 'full_name']);
+                $email = $this->col($row, ['email_address', 'email']);
+                if (!$name || !$email) continue;
+
+                $map[strtolower(trim($name))] = $email;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
      * Merge master list + private car map + bus groups + below-2 map + additional-ticket map
      * into final employee records.
      *
@@ -204,7 +232,7 @@ class EmployeeImportService
      * vehicles are paid for separately, so they never affect total_vehicles.
      * switched_from_bus is intentionally excluded — import never resets a flag set at the gate.
      */
-    private function buildAllEmployees(array $masterList, array $privateCarMap, array $busGroups, array $belowTwoMap = [], array $additionalMap = []): array
+    private function buildAllEmployees(array $masterList, array $privateCarMap, array $busGroups, array $belowTwoMap = [], array $additionalMap = [], array $emailMap = []): array
     {
         $records = [];
 
@@ -238,6 +266,7 @@ class EmployeeImportService
 
             $records[] = [
                 'name'                 => $name,
+                'email'                => $emailMap[$nameKey] ?? null,
                 'employee_type'        => $empType,
                 'total_vehicles'       => $vehicles,
                 'total_passengers'       => $headcount,
