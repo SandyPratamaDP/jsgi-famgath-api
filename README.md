@@ -26,7 +26,7 @@ composer install
 
 # 2. Configure environment
 cp .env.example .env
-# Edit .env — fill in DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+# Edit .env — fill in FAMGATH_DB_HOST, FAMGATH_DB_DATABASE, FAMGATH_DB_USERNAME, FAMGATH_DB_PASSWORD
 
 # 3. Generate app key
 php artisan key:generate
@@ -43,9 +43,9 @@ php artisan serve --host=0.0.0.0 --port=8000
 | Variable | Description |
 |---|---|
 | `APP_KEY` | Laravel application key (auto-generated) |
-| `DB_HOST` | PostgreSQL host |
-| `DB_DATABASE` | Database name |
-| `DB_USERNAME` / `DB_PASSWORD` | Database credentials |
+| `FAMGATH_DB_HOST` | PostgreSQL host |
+| `FAMGATH_DB_DATABASE` | Database name |
+| `FAMGATH_DB_USERNAME` / `FAMGATH_DB_PASSWORD` | Database credentials |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed frontend origins |
 
 ## API Endpoints
