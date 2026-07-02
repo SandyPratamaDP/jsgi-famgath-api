@@ -15,7 +15,7 @@ class EmployeePdfService
         set_time_limit(0);
         ini_set('memory_limit', '512M');
 
-        [$logoData, $qrData] = $this->buildImageDataUris();
+        $logoData = $this->buildLogoDataUri();
 
         $ticketDir = storage_path('app/public/tickets');
         if (!is_dir($ticketDir)) {
@@ -27,6 +27,7 @@ class EmployeePdfService
         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         foreach ($employees as $employee) {
+            $qrData = $this->buildQrDataUri($employee);
             [$pdfBytes, $filename] = $this->render($employee, $logoData, $qrData);
 
             file_put_contents($ticketDir . '/' . $filename, $pdfBytes);
@@ -103,7 +104,8 @@ class EmployeePdfService
      */
     public function renderAndCache(Employee $employee): array
     {
-        [$logoData, $qrData] = $this->buildImageDataUris();
+        $logoData = $this->buildLogoDataUri();
+        $qrData   = $this->buildQrDataUri($employee);
         [$pdfBytes, $filename] = $this->render($employee, $logoData, $qrData);
 
         $ticketDir = storage_path('app/public/tickets');
@@ -153,7 +155,7 @@ class EmployeePdfService
         return [$bytes, $filename];
     }
 
-    private function buildImageDataUris(): array
+    private function buildLogoDataUri(): string
     {
         // Logo: convert webp → png via GD so dompdf can render it reliably
         $logoPath = storage_path('app/public/logo.webp');
@@ -173,11 +175,20 @@ class EmployeePdfService
             $logoData = '';
         }
 
-        $qrPath = storage_path('app/public/ancol-qr.png');
-        $qrData = file_exists($qrPath)
+        return $logoData;
+    }
+
+    /**
+     * Operational employees enter/exit Ancol repeatedly, so they get a visually
+     * distinct "Ancol Masuk" QR from everyone else's single-entry QR.
+     */
+    private function buildQrDataUri(Employee $employee): string
+    {
+        $filename = $employee->transport_type === 'operational' ? 'ancol-qr-operational.png' : 'ancol-qr.png';
+        $qrPath   = storage_path('app/public/' . $filename);
+
+        return file_exists($qrPath)
             ? 'data:image/png;base64,' . base64_encode(file_get_contents($qrPath))
             : '';
-
-        return [$logoData, $qrData];
     }
 }
