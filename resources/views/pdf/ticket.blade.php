@@ -29,6 +29,7 @@
         .strip { height: 5px; border-radius: 12px 12px 0 0; }
         .strip-car { background: #0284c7; }
         .strip-bus { background: #7c3aed; }
+        .strip-operational { background: #0d9488; }
         .strip-additional { background: #ea580c; }
 
         /* ── Header ── */
@@ -42,6 +43,7 @@
         }
         .badge-car { background: #0284c7; }
         .badge-bus { background: #7c3aed; }
+        .badge-operational { background: #0d9488; }
         .badge-additional { background: #ea580c; }
 
         /* ── Name section ── */
@@ -117,7 +119,12 @@
     <div class="card">
 
         {{-- Accent strip --}}
-        <div class="strip {{ $employee->transport_type === 'private_car' ? 'strip-car' : 'strip-bus' }}"></div>
+        <div class="strip
+            @if($employee->transport_type === 'private_car') strip-car
+            @elseif($employee->transport_type === 'operational') strip-operational
+            @else strip-bus
+            @endif
+        "></div>
 
         {{-- Header --}}
         <div class="header">
@@ -134,6 +141,8 @@
                     <td style="vertical-align:middle; text-align:right; white-space:nowrap;">
                         @if($employee->transport_type === 'private_car')
                             <span class="badge badge-car">Kendaraan Pribadi</span>
+                        @elseif($employee->transport_type === 'operational')
+                            <span class="badge badge-operational">Operational</span>
                         @else
                             <span class="badge badge-bus">Bus {{ $employee->bus_number }}</span>
                         @endif
@@ -174,7 +183,7 @@
                             </div>
                         </div>
 
-                        @if($employee->transport_type === 'private_car')
+                        @if($employee->transport_type === 'private_car' || $employee->transport_type === 'operational')
                             {{-- Jumlah Kendaraan --}}
                             <div class="stat-box">
                                 <div class="stat-label">Jumlah Kendaraan</div>
@@ -216,6 +225,12 @@
             @if($employee->has_below_two_children ?? false)
                 <div style="margin-top:8px; background:#fffbeb; border:1px solid #fbbf24; border-radius:6px; padding:6px 10px; font-size:9px; font-weight:bold; color:#92400e;">
                     PENTING: Anak di bawah 2 tahun tidak dihitung dalam jumlah orang dan tidak perlu membayar tiket.
+                </div>
+            @endif
+
+            @if($employee->transport_type === 'operational')
+                <div style="margin-top:8px; background:#f0fdfa; border:1px solid #0d9488; border-radius:6px; padding:6px 10px; font-size:9px; font-weight:bold; color:#0f766e;">
+                    PENTING: Tiket ini berlaku untuk KELUAR-MASUK kawasan Ancol BERKALI-KALI selama masa berlaku.
                 </div>
             @endif
         </div>
