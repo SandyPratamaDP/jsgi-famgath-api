@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use App\Services\EmployeeImportService;
 use App\Services\EmployeePdfService;
+use App\Services\EmployeeQrService;
 use Illuminate\Http\Request;
 
 class EmployeeController extends Controller
@@ -12,6 +13,7 @@ class EmployeeController extends Controller
     public function __construct(
         private EmployeeImportService $importService,
         private EmployeePdfService $pdfService,
+        private EmployeeQrService $qrService,
     ) {}
 
     public function index()
@@ -98,6 +100,17 @@ class EmployeeController extends Controller
         }
 
         [$bytes, $filename] = $this->pdfService->renderImageAndCache($employee);
+
+        return response($bytes, 200, [
+            'Content-Type'        => 'image/png',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    public function downloadQrCode(Employee $employee)
+    {
+        $bytes    = $this->qrService->renderPng($employee);
+        $filename = $this->qrService->filename($employee);
 
         return response($bytes, 200, [
             'Content-Type'        => 'image/png',

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Employee extends Model
 {
@@ -23,6 +24,29 @@ class Employee extends Model
         'pickup_point',
         'pdf_filename',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Employee $employee) {
+            if (empty($employee->qr_code)) {
+                $employee->qr_code = self::generateUniqueQrCode();
+            }
+        });
+    }
+
+    private static function generateUniqueQrCode(): string
+    {
+        do {
+            $code = Str::random(32);
+        } while (self::where('qr_code', $code)->exists());
+
+        return $code;
+    }
+
+    public function wahanaCheckins()
+    {
+        return $this->hasMany(WahanaCheckin::class);
+    }
 
     protected $casts = [
         'total_vehicles'       => 'integer',
