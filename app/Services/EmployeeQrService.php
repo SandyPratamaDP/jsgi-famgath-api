@@ -41,8 +41,9 @@ class EmployeeQrService
 
     /**
      * Compose the raw QR into a printable card: famgath logo, a caption explaining
-     * what the code is for, the QR itself, and the employee name + raw code
-     * printed as text underneath (manual-entry fallback if the scan fails).
+     * what the code is for, the QR itself, and the employee name + short manual_code
+     * printed as text underneath (manual-entry fallback if the scan fails). The long
+     * qr_code itself is never printed — it's only meant to be read by a scanner.
      */
     private function composeCard(Employee $employee, string $qrPngBytes): string
     {
@@ -71,7 +72,7 @@ class EmployeeQrService
             + $qrHeight + 28
             + 1 + 20 // divider + gap
             + $lineHeight + 6 // employee name
-            + 16 + $lineHeight // "kode manual" hint + code
+            + 16 + 30 // "kode manual" hint + code (larger font)
             + $bottomPadding;
 
         $canvas = imagecreatetruecolor($canvasWidth, $canvasHeight);
@@ -113,7 +114,7 @@ class EmployeeQrService
         $this->drawCenteredText($canvas, $font, 11, $muted, $canvasWidth, $y, 'Kode manual jika QR gagal dipindai:');
         $y += 16;
 
-        $this->drawCenteredText($canvas, $font, 14, $dark, $canvasWidth, $y, $employee->qr_code);
+        $this->drawCenteredText($canvas, $font, 22, $dark, $canvasWidth, $y, $this->formatManualCode($employee->manual_code), bold: true);
 
         ob_start();
         imagepng($canvas);
@@ -126,6 +127,11 @@ class EmployeeQrService
         }
 
         return $bytes;
+    }
+
+    private function formatManualCode(string $code): string
+    {
+        return implode('-', str_split($code, 4));
     }
 
     private function loadLogo(): \GdImage|false|null

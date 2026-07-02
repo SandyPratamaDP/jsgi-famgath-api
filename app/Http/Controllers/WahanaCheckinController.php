@@ -11,10 +11,12 @@ class WahanaCheckinController extends Controller
 {
     public function lookup(string $code)
     {
-        $employee = Employee::where('qr_code', $code)->first();
+        $employee = Employee::where('qr_code', $code)
+            ->orWhere('manual_code', Employee::normalizeManualCode($code))
+            ->first();
 
         if (!$employee) {
-            return response()->json(['message' => 'Kode QR tidak ditemukan.'], 404);
+            return response()->json(['message' => 'Kode tidak ditemukan.'], 404);
         }
 
         return response()->json(['data' => $this->present($employee)]);

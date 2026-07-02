@@ -25,11 +25,18 @@ class Employee extends Model
         'pdf_filename',
     ];
 
+    // Excludes visually-ambiguous characters (0/O, 1/I/L) since this is meant to be typed by hand.
+    private const MANUAL_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+    private const MANUAL_CODE_LENGTH   = 8;
+
     protected static function booted(): void
     {
         static::creating(function (Employee $employee) {
             if (empty($employee->qr_code)) {
                 $employee->qr_code = self::generateUniqueQrCode();
+            }
+            if (empty($employee->manual_code)) {
+                $employee->manual_code = self::generateUniqueManualCode();
             }
         });
     }
@@ -41,6 +48,24 @@ class Employee extends Model
         } while (self::where('qr_code', $code)->exists());
 
         return $code;
+    }
+
+    public static function generateUniqueManualCode(): string
+    {
+        do {
+            $code = '';
+            for ($i = 0; $i < self::MANUAL_CODE_LENGTH; $i++) {
+                $code .= self::MANUAL_CODE_ALPHABET[random_int(0, strlen(self::MANUAL_CODE_ALPHABET) - 1)];
+            }
+        } while (self::where('manual_code', $code)->exists());
+
+        return $code;
+    }
+
+    /** Strip any dashes/spaces and uppercase, so "a3f9-7k2m" matches a stored manual_code. */
+    public static function normalizeManualCode(string $code): string
+    {
+        return strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $code));
     }
 
     public function wahanaCheckins()
