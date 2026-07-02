@@ -25,6 +25,7 @@ class EmployeeImportService
         $additionalMap    = $this->buildAdditionalTicketMap($sheets);
         $emailMap         = $this->buildEmailMap($sheets);
         $records          = $this->buildAllEmployees($masterList, $privateCarMap, $busGroups, $belowTwoMap, $additionalMap, $emailMap);
+        $records          = array_merge($records, $this->buildOperationalList($sheets, $emailMap, $belowTwoMap, $additionalMap));
 
         foreach ($records as $data) {
             Employee::updateOrCreate(['name' => $data['name']], $data);
@@ -120,7 +121,8 @@ class EmployeeImportService
                 stripos($lower, 'expat')   !== false ||
                 stripos($lower, 'email')   !== false ||
                 stripos($lower, 'below')   !== false ||
-                stripos($lower, 'additional') !== false) continue;
+                stripos($lower, 'additional') !== false ||
+                stripos($lower, 'operational') !== false) continue;
 
             [$headers, $dataRows] = $this->extractHeadersAndRows($rows);
 
@@ -220,6 +222,49 @@ class EmployeeImportService
         }
 
         return $map;
+    }
+
+    /**
+     * Read the "Operational" sheet. Columns: No, Nama, Jumlah, Remarks.
+     * These are a fixed roster (not headcount-derived like the master list), each
+     * bringing their own vehicle, with headcount taken directly from "Jumlah".
+     * Returns a list of employee records ready for updateOrCreate.
+     */
+    private function buildOperationalList(array $sheets, array $emailMap = [], array $belowTwoMap = [], array $additionalMap = []): array
+    {
+        $records = [];
+
+        foreach ($sheets as $sheetName => $rows) {
+            if (stripos($sheetName, 'operational') === false) continue;
+
+            [$headers, $dataRows] = $this->extractHeadersAndRows($rows);
+
+            foreach ($dataRows as $row) {
+                $row  = $this->combineRow($headers, (array) $row);
+                $name = $this->col($row, ['nama', 'name', 'emp_name', 'full_name']);
+                if (!$name) continue;
+
+                $nameKey   = strtolower(trim($name));
+                $jumlah    = (int) ($this->col($row, ['jumlah']) ?: 1);
+
+                $records[$nameKey] = [
+                    'name'                    => $name,
+                    'email'                   => $emailMap[$nameKey] ?? null,
+                    'employee_type'           => 'local',
+                    'total_vehicles'          => 1,
+                    'total_passengers'        => max(1, $jumlah),
+                    'additional_members'      => $additionalMap[$nameKey] ?? 0,
+                    'has_below_two_children'  => ($belowTwoMap[$nameKey] ?? 0) > 0,
+                    'transport_type'          => 'operational',
+                    'bus_number'              => null,
+                    'is_pic_bus'              => false,
+                    'total_bus_passengers'    => null,
+                    'pickup_point'            => null,
+                ];
+            }
+        }
+
+        return array_values($records);
     }
 
     /**
