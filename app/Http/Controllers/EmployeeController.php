@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendEmployeeTicketEmail;
 use App\Models\Employee;
 use App\Services\EmployeeImportService;
 use App\Services\EmployeePdfService;
@@ -62,21 +63,48 @@ class EmployeeController extends Controller
         return response()->json(['data' => $employee->fresh()]);
     }
 
-    public function generateAndDownloadPdfs()
+    public function blastEmail()
     {
+        // Only private_car/operational employees get emailed tickets (bus/PIC bus print instead),
+        // and only those never sent before — safe to click repeatedly as new imports land.
         $employees = Employee::query()
-            ->where(fn ($q) => $q->where('transport_type', 'private_car')->orWhere('is_pic_bus', true))
+            ->whereIn('transport_type', ['private_car', 'operational'])
+            ->whereNotNull('email')
+            ->whereNull('ticket_email_sent_at')
             ->orderBy('name')
             ->get();
 
-        if ($employees->isEmpty()) {
-            return response()->json(['message' => 'Tidak ada karyawan yang eligible untuk dicetak.'], 404);
+        $dispatched = 0;
+
+        foreach ($employees as $employee) {
+            if (!filter_var($employee->email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+
+            SendEmployeeTicketEmail::dispatch($employee->id);
+            $dispatched++;
         }
 
-        $zipPath = $this->pdfService->generateBundle($employees);
+        return response()->json([
+            'message' => 'Blast email dimulai di background.',
+            'count'   => $dispatched,
+        ]);
+    }
 
-        return response()->download($zipPath, 'family-gathering-tickets.zip')
-                         ->deleteFileAfterSend(true);
+    /**
+     * Manual/individual (re)send — ignores ticket_email_sent_at so it also covers
+     * "didn't receive it" or "the blast failed for them" cases. The job itself only
+     * stamps ticket_email_sent_at once the send actually succeeds.
+     */
+    public function sendEmail(Employee $employee)
+    {
+        if (!filter_var($employee->email, FILTER_VALIDATE_EMAIL)) {
+            return response()->json(['message' => 'Karyawan ini tidak memiliki alamat email yang valid.'], 422);
+        }
+
+        SendEmployeeTicketEmail::dispatch($employee->id);
+
+        return response()->json(['message' => 'Email sedang dikirim di background.']);
     }
 
     public function downloadSinglePdf(Employee $employee)
