@@ -23,6 +23,7 @@ class Employee extends Model
         'total_bus_passengers',
         'pickup_point',
         'pdf_filename',
+        'ticket_email_sent_at',
     ];
 
     // Excludes visually-ambiguous characters (0/O, 1/I/L) since this is meant to be typed by hand.
@@ -82,6 +83,7 @@ class Employee extends Model
         'is_pic_bus'           => 'boolean',
         'switched_from_bus'    => 'boolean',
         'total_bus_passengers' => 'integer',
+        'ticket_email_sent_at' => 'datetime',
     ];
 
     public function scopeSearch($query, ?string $term)

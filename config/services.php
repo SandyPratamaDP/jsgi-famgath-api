@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'notify' => [
+        'url'    => env('NOTIFY_SERVICE_URL'),
+        'api_key' => env('NOTIFY_SERVICE_API_KEY'),
+        'sender' => env('NOTIFY_SENDER_EMAIL'),
+    ],
+
 ];

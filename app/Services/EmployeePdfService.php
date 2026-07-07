@@ -4,49 +4,9 @@ namespace App\Services;
 
 use App\Models\Employee;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Database\Eloquent\Collection;
-use ZipArchive;
 
 class EmployeePdfService
 {
-    public function generateBundle(Collection $employees): string
-    {
-        // PDF generation for 100+ employees can take well over 30s
-        set_time_limit(0);
-        ini_set('memory_limit', '512M');
-
-        $logoData = $this->buildLogoDataUri();
-
-        $ticketDir = storage_path('app/public/tickets');
-        if (!is_dir($ticketDir)) {
-            mkdir($ticketDir, 0755, true);
-        }
-
-        $zipPath = storage_path('app/public/ticket-bundle.zip');
-        $zip     = new ZipArchive();
-        $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-
-        foreach ($employees as $employee) {
-            $qrData = $this->buildQrDataUri($employee);
-            [$pdfBytes, $filename] = $this->render($employee, $logoData, $qrData);
-
-            file_put_contents($ticketDir . '/' . $filename, $pdfBytes);
-            $zip->addFromString($filename, $pdfBytes);
-
-            // Cache PNG alongside PDF so individual image downloads are instant.
-            $pngBytes  = $this->convertPdfToPng($pdfBytes);
-            $imageName = $this->imageFilename($filename);
-            file_put_contents($ticketDir . '/' . $imageName, $pngBytes);
-            unset($pdfBytes, $pngBytes);
-
-            $employee->update(['pdf_filename' => $filename]);
-        }
-
-        $zip->close();
-
-        return $zipPath;
-    }
-
     /**
      * Return the on-disk path if a cached PDF exists, otherwise null.
      */
@@ -117,6 +77,37 @@ class EmployeePdfService
         $employee->update(['pdf_filename' => $filename]);
 
         return [$pdfBytes, $filename];
+    }
+
+    /**
+     * Delete any PDF/PNG in the tickets dir that no employee references anymore —
+     * e.g. left behind after a re-import drops an employee's eligibility or renames them.
+     * Returns the number of files removed.
+     */
+    public function pruneOrphanedFiles(): int
+    {
+        $ticketDir = storage_path('app/public/tickets');
+        if (!is_dir($ticketDir)) {
+            return 0;
+        }
+
+        $referenced = [];
+        foreach (Employee::whereNotNull('pdf_filename')->pluck('pdf_filename') as $pdfFilename) {
+            $referenced[$pdfFilename] = true;
+            $referenced[$this->imageFilename($pdfFilename)] = true;
+        }
+
+        $deleted = 0;
+        foreach (scandir($ticketDir) as $file) {
+            if ($file === '.' || $file === '..' || isset($referenced[$file])) {
+                continue;
+            }
+
+            unlink($ticketDir . '/' . $file);
+            $deleted++;
+        }
+
+        return $deleted;
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────
