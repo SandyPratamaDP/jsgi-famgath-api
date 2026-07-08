@@ -16,6 +16,7 @@ class EmployeeImportService
         'name', 'email', 'transport_type', 'bus_number', 'is_pic_bus',
         'total_bus_passengers', 'total_passengers', 'total_vehicles',
         'pickup_point', 'has_below_two_children', 'additional_members',
+        'additional_vehicles',
     ];
 
     public function __construct(private EmployeePdfService $pdfService) {}
@@ -202,9 +203,9 @@ class EmployeeImportService
     }
 
     /**
-     * Read the "Additional Ticket" sheet. Columns: "Nama Lengkap", "Additional Ticket Famgath"
-     * (count of extra recreation tickets bought for people outside the employee's core family).
-     * Returns [lowercase_name => additional_ticket_count]
+     * Read the "Additional Ticket" sheet. Columns: "Nama Lengkap", "Additional Ticket Famgath", "Mobil"
+     * (extra recreation tickets and vehicles bought for people outside the employee's core family).
+     * Returns [lowercase_name => ['members' => additional_ticket_count, 'vehicles' => additional_vehicle_count]]
      */
     private function buildAdditionalTicketMap(array $sheets): array
     {
@@ -220,10 +221,14 @@ class EmployeeImportService
                 $name = $this->col($row, ['nama_lengkap', 'nama', 'name', 'emp_name', 'full_name']);
                 if (!$name) continue;
 
-                $count = (int) ($this->col($row, ['additional_ticket_famgath', 'additional_ticket']) ?: 0);
+                $count    = (int) ($this->col($row, ['additional_ticket_famgath', 'additional_ticket']) ?: 0);
+                $vehicles = (int) ($this->col($row, ['mobil', 'jumlah_kendaraan', 'vehicle_count']) ?: 0);
 
                 $nameKey = strtolower(trim($name));
-                $map[$nameKey] = ($map[$nameKey] ?? 0) + $count;
+                $map[$nameKey] = [
+                    'members'  => ($map[$nameKey]['members']  ?? 0) + $count,
+                    'vehicles' => ($map[$nameKey]['vehicles'] ?? 0) + $vehicles,
+                ];
             }
         }
 
@@ -286,7 +291,8 @@ class EmployeeImportService
                     'employee_type'           => 'local',
                     'total_vehicles'          => 1,
                     'total_passengers'        => max(1, $jumlah),
-                    'additional_members'      => $additionalMap[$nameKey] ?? 0,
+                    'additional_members'      => $additionalMap[$nameKey]['members']  ?? 0,
+                    'additional_vehicles'     => $additionalMap[$nameKey]['vehicles'] ?? 0,
                     'has_below_two_children'  => ($belowTwoMap[$nameKey] ?? 0) > 0,
                     'transport_type'          => 'operational',
                     'bus_number'              => null,
@@ -306,8 +312,8 @@ class EmployeeImportService
      *
      * Expat rule: headcount +1 to account for the company-provided driver.
      * Below-2 rule: headcount -1 per matching child, since infants under 2 don't need a ticket.
-     * Additional-ticket rule: additional_members holds guests outside the core family; their
-     * vehicles are paid for separately, so they never affect total_vehicles.
+     * Additional-ticket rule: additional_members/additional_vehicles hold guests and vehicles
+     * outside the core family; they're paid for separately, so they never affect total_vehicles.
      * switched_from_bus is intentionally excluded — import never resets a flag set at the gate.
      */
     private function buildAllEmployees(array $masterList, array $privateCarMap, array $busGroups, array $belowTwoMap = [], array $additionalMap = [], array $emailMap = []): array
@@ -348,7 +354,8 @@ class EmployeeImportService
                 'employee_type'        => $empType,
                 'total_vehicles'       => $vehicles,
                 'total_passengers'       => $headcount,
-                'additional_members'     => $additionalMap[$nameKey] ?? 0,
+                'additional_members'     => $additionalMap[$nameKey]['members']  ?? 0,
+                'additional_vehicles'    => $additionalMap[$nameKey]['vehicles'] ?? 0,
                 'has_below_two_children' => ($belowTwoMap[$nameKey] ?? 0) > 0,
                 'transport_type'       => $transport,
                 'bus_number'           => $busNumber,

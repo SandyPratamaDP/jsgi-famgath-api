@@ -295,11 +295,11 @@
                                 </div>
                             </div>
 
-                            {{-- Additional guests always arrange & pay for their own vehicle --}}
+                            {{-- Jumlah Kendaraan (additional guests' own vehicles, from the "Mobil" column) --}}
                             <div class="stat-box">
                                 <div class="stat-label">Jumlah Kendaraan</div>
                                 <div class="stat-number color-car">
-                                    0
+                                    {{ $employee->additional_vehicles ?? 0 }}
                                     <span class="stat-unit">unit</span>
                                 </div>
                             </div>
