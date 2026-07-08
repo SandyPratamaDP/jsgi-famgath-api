@@ -65,10 +65,15 @@ class EmployeeController extends Controller
 
     public function blastEmail()
     {
-        // Only private_car/operational employees get emailed tickets (bus/PIC bus print instead),
-        // and only those never sent before — safe to click repeatedly as new imports land.
+        // Emailed tickets go to private_car/operational employees plus PIC bus (who
+        // hold their bus's manifest ticket) — regular bus riders have no individual
+        // ticket. Only those never sent before — safe to click repeatedly as new
+        // imports land.
         $employees = Employee::query()
-            ->whereIn('transport_type', ['private_car', 'operational'])
+            ->where(function ($q) {
+                $q->whereIn('transport_type', ['private_car', 'operational'])
+                  ->orWhere('is_pic_bus', true);
+            })
             ->whereNotNull('email')
             ->whereNull('ticket_email_sent_at')
             ->orderBy('name')
