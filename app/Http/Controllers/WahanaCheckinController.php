@@ -9,6 +9,13 @@ use Illuminate\Http\Request;
 
 class WahanaCheckinController extends Controller
 {
+    public function search(Request $request)
+    {
+        $employees = Employee::search(trim($request->query('query', '')))->orderBy('name')->get();
+
+        return response()->json(['data' => $employees->map(fn (Employee $e) => $this->present($e))]);
+    }
+
     public function lookup(string $code)
     {
         $employee = Employee::where('qr_code', $code)

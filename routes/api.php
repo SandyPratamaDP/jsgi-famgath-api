@@ -23,6 +23,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::patch('employees/{employee}', [EmployeeController::class, 'update']);
 
     // EO + Panitia: wahana (Sea World / Samudera Ancol) QR-based entry
+    Route::get('wahana/search',              [WahanaCheckinController::class, 'search']);
     Route::get('wahana/{code}',              [WahanaCheckinController::class, 'lookup']);
     Route::post('wahana/{employee}/checkin', [WahanaCheckinController::class, 'checkin']);
 
