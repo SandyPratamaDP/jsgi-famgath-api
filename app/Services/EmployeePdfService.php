@@ -170,16 +170,25 @@ class EmployeePdfService
     }
 
     /**
-     * Operational employees enter/exit Ancol repeatedly, so they get a visually
-     * distinct "Ancol Masuk" QR from everyone else's single-entry QR.
+     * Each employee category has its own Ancol gate-entry QR: operational staff
+     * enter/exit repeatedly so they get a distinct multi-entry QR, and local vs
+     * expat get separate single-entry QRs managed independently by panitia.
      */
     private function buildQrDataUri(Employee $employee): string
     {
-        $filename = $employee->transport_type === 'operational' ? 'ancol-qr-operational.png' : 'ancol-qr.png';
-        $qrPath   = storage_path('app/public/' . $filename);
+        $qrPath = storage_path('app/public/ancol-qr-' . $this->qrCategory($employee) . '.png');
 
         return file_exists($qrPath)
             ? 'data:image/png;base64,' . base64_encode(file_get_contents($qrPath))
             : '';
+    }
+
+    private function qrCategory(Employee $employee): string
+    {
+        if ($employee->transport_type === 'operational') {
+            return 'operational';
+        }
+
+        return $employee->employee_type === 'expat' ? 'expat' : 'local';
     }
 }

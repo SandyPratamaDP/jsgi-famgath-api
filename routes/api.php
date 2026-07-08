@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AncolQrController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\WahanaCheckinController;
@@ -27,6 +28,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('wahana/{code}',              [WahanaCheckinController::class, 'lookup']);
     Route::post('wahana/{employee}/checkin', [WahanaCheckinController::class, 'checkin']);
 
+    // EO + Panitia: Ancol gate-entry QR, one per employee category
+    Route::get('ancol-qr/{category}', [AncolQrController::class, 'show'])
+        ->where('category', 'local|expat|operational');
+
     // Panitia only
     Route::middleware('role:panitia')->group(function () {
         Route::post('import-employees',          [EmployeeController::class, 'import']);
@@ -35,5 +40,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('employees/{employee}/pdf',   [EmployeeController::class, 'downloadSinglePdf']);
         Route::get('employees/{employee}/image', [EmployeeController::class, 'downloadSingleImage']);
         Route::get('employees/{employee}/qr',    [EmployeeController::class, 'downloadQrCode']);
+        Route::post('ancol-qr/{category}', [AncolQrController::class, 'upload'])
+            ->where('category', 'local|expat|operational');
     });
 });
