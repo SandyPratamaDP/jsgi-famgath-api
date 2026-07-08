@@ -30,6 +30,12 @@
                 bukan tiket wahana lain di luar area tersebut.
             </div>
 
+            <div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; padding:10px 16px; font-size:12px; color:#991b1b; margin:0 0 12px;">
+                <strong>Perhatian:</strong> Tiket ini bersifat pribadi dan hanya berlaku untuk
+                karyawan yang bersangkutan beserta keluarganya. Tiket dilarang keras untuk
+                diperjualbelikan atau dipindahtangankan kepada pihak lain dalam bentuk apa pun.
+            </div>
+
             <p style="font-size:12px; color:#94a3b8; font-style:italic; margin:0;">
                 Email ini dikirim otomatis, mohon tidak membalas ke alamat ini.
             </p>
