@@ -49,7 +49,7 @@
         /* ── Name section ── */
         .name-section { padding: 16px 20px 12px; border-bottom: 1px solid #f1f5f9; }
         .name-label {
-            font-size: 8px; color: #94a3b8;
+            font-size: 10px; color: #1e293b;
             text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;
         }
         .name-value {
@@ -75,15 +75,15 @@
         .stat-box:last-child, .stat-box-bus:last-child { margin-bottom: 0; }
 
         .stat-label {
-            font-size: 8px; color: #94a3b8;
+            font-size: 10px; color: #1e293b;
             text-transform: uppercase; letter-spacing: 0.8px;
         }
-        .stat-label-bus { font-size: 8px; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.8px; }
+        .stat-label-bus { font-size: 10px; color: #5b21b6; text-transform: uppercase; letter-spacing: 0.8px; }
 
         .stat-number {
             font-size: 32px; font-weight: bold; line-height: 1.1; margin-top: 4px;
         }
-        .stat-unit { font-size: 13px; font-weight: normal; color: #64748b; }
+        .stat-unit { font-size: 15px; font-weight: normal; color: #1e293b; }
 
         .stat-text { font-size: 18px; font-weight: bold; line-height: 1.2; margin-top: 4px; }
 
@@ -97,7 +97,7 @@
             border-radius: 10px; padding: 8px;
         }
         .qr-caption {
-            font-size: 8.5px; color: #94a3b8; text-align: center; margin-top: 7px;
+            font-size: 11px; color: #1e293b; text-align: center; margin-top: 7px;
         }
 
         /* ── Divider ── */
@@ -107,7 +107,7 @@
         .footer {
             background: #f8fafc; border-top: 1px solid #e2e8f0;
             padding: 9px 20px; border-radius: 0 0 12px 12px;
-            font-size: 8.5px; color: #94a3b8;
+            font-size: 11px; color: #1e293b;
         }
         .footer-bold { color: #0f172a; font-weight: bold; }
 
@@ -216,7 +216,7 @@
             <div class="divider"></div>
 
             {{-- Disclaimer --}}
-            <div style="font-size:8px; color:#94a3b8; font-style:italic;">
+            <div style="font-size:10px; color:#1e293b; font-style:italic;">
                 Kartu ini merupakan tiket masuk resmi ke kawasan Ancol untuk keperluan
                 Family Gathering JSGI 2026. Harap dijaga dan tunjukkan kepada petugas
                 saat memasuki area.
@@ -318,7 +318,7 @@
 
                 <div class="divider"></div>
 
-                <div style="font-size:8px; color:#94a3b8; font-style:italic;">
+                <div style="font-size:10px; color:#1e293b; font-style:italic;">
                     Tiket tambahan untuk peserta rekreasi di luar keluarga inti karyawan
                     (bundle Seaworld, Ancol, dan Samudra). Kendaraan peserta tambahan
                     diatur dan dibayar secara terpisah.
