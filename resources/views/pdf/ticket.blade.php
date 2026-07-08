@@ -228,11 +228,6 @@
                 </div>
             @endif
 
-            @if($employee->transport_type === 'operational')
-                <div style="margin-top:8px; background:#f0fdfa; border:1px solid #0d9488; border-radius:6px; padding:6px 10px; font-size:9px; font-weight:bold; color:#0f766e;">
-                    PENTING: Tiket ini berlaku untuk KELUAR-MASUK kawasan Ancol BERKALI-KALI selama masa berlaku.
-                </div>
-            @endif
         </div>
 
         {{-- Footer --}}
