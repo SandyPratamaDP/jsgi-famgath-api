@@ -43,8 +43,11 @@ class EmployeeImportService
         foreach ($records as $data) {
             $employee = Employee::updateOrCreate(['name' => $data['name']], $data);
 
-            // Eligible for a printed/emailed ticket — same rule as the old "Generate All PDFs" filter.
-            $eligible = $data['transport_type'] === 'private_car' || ($data['is_pic_bus'] ?? false);
+            // Eligible for a printed/emailed ticket — same rule as the old "Generate All PDFs"
+            // filter, plus operational staff who now get their own gate-entry ticket too.
+            $eligible = $data['transport_type'] === 'private_car'
+                || $data['transport_type'] === 'operational'
+                || ($data['is_pic_bus'] ?? false);
 
             $resets = [];
             if ($employee->wasChanged(self::TICKET_RELEVANT_FIELDS) && $employee->ticket_email_sent_at) {
