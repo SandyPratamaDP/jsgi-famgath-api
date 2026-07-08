@@ -45,17 +45,24 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee)
     {
         $attributes = $request->validate([
-            'total_vehicles'   => 'sometimes|integer|min:0',
-            'transport_type'   => 'sometimes|in:private_car,bus',
-            'total_passengers' => 'sometimes|integer|min:1',
+            'total_vehicles'    => 'sometimes|integer|min:0',
+            'transport_type'    => 'sometimes|in:private_car,bus',
+            'total_passengers'  => 'sometimes|integer|min:1',
+            'switched_from_bus' => 'sometimes|boolean',
         ]);
 
         if (array_key_exists('total_vehicles', $attributes) && !array_key_exists('transport_type', $attributes)) {
             $attributes['transport_type'] = $attributes['total_vehicles'] >= 1 ? 'private_car' : 'bus';
         }
 
-        // Domain rule: mark day-of-event switches — never cleared by this endpoint.
-        if (($attributes['transport_type'] ?? null) === 'private_car' && $employee->transport_type === 'bus') {
+        // Domain rule: gate-scanner flags bus -> private_car as a day-of anomaly. Callers
+        // that already know better (e.g. an admin's manual reassignment) pass
+        // switched_from_bus explicitly and that choice wins here.
+        if (
+            ($attributes['transport_type'] ?? null) === 'private_car'
+            && $employee->transport_type === 'bus'
+            && !array_key_exists('switched_from_bus', $attributes)
+        ) {
             $attributes['switched_from_bus'] = true;
         }
 
