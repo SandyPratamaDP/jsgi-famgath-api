@@ -22,9 +22,9 @@ class AuthService
             return null;
         }
 
-        // Revoke previous tokens so only one active session per user
-        $user->tokens()->delete();
-
+        // Concurrent sessions are allowed (e.g. same admin account on desktop + phone,
+        // or multiple panitia sharing one login) — a new login must never invalidate
+        // another tab/device's still-active token.
         $token = $user->createToken('auth-token', ['*'], now()->addHours(12))->plainTextToken;
 
         $this->logService->record($user->id, $user->username, 'success', $ip, $ua);
