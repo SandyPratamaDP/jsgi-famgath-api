@@ -16,9 +16,7 @@
             <p style="font-size:14px; margin:0 0 12px;">Halo <strong>{{ $employee->name }}</strong>,</p>
 
             <p style="font-size:13px; line-height:1.6; margin:0 0 12px;">
-                Berikut kami lampirkan tiket masuk Family Gathering JSGI 2026 dalam format PDF
-                beserta gambar QR tiket Anda. Mohon disimpan dan ditunjukkan kepada petugas
-                saat memasuki area Ancol.
+                Berikut kami lampirkan tiket masuk kawasan Ancol untuk acara Family Gathering JSGI 2026 dalam format PDF dan PNG lengkap dengan QR code tiket Anda. Mohon disimpan dan ditunjukkan kepada petugas saat memasuki gebang Ancol.
             </p>
 
             <div style="background:#eef4fb; border:1px solid #bcd2ea; border-radius:8px; padding:12px 16px; font-size:13px; margin:0 0 12px;">
