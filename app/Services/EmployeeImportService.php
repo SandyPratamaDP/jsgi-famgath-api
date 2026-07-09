@@ -9,16 +9,6 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class EmployeeImportService
 {
-    // Fields that show up on the printed/emailed ticket — if a re-import changes any
-    // of these for an employee who's already been sent their email, the old ticket
-    // they received is stale, so we reset ticket_email_sent_at to let Blast Email resend it.
-    private const TICKET_RELEVANT_FIELDS = [
-        'name', 'email', 'transport_type', 'bus_number', 'is_pic_bus',
-        'total_bus_passengers', 'total_passengers', 'total_vehicles',
-        'pickup_point', 'has_below_two_children', 'additional_members',
-        'additional_vehicles',
-    ];
-
     public function __construct(private EmployeePdfService $pdfService) {}
 
     public function import(UploadedFile $file): int
@@ -45,7 +35,7 @@ class EmployeeImportService
             $eligible = $employee->isTicketEligible();
 
             $resets = [];
-            if ($employee->wasChanged(self::TICKET_RELEVANT_FIELDS) && $employee->ticket_email_sent_at) {
+            if ($employee->wasChanged(Employee::TICKET_RELEVANT_FIELDS) && $employee->ticket_email_sent_at) {
                 $resets['ticket_email_sent_at'] = null;
             }
             if (!$eligible && $employee->pdf_filename) {

@@ -31,6 +31,16 @@ class Employee extends Model
     private const MANUAL_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
     private const MANUAL_CODE_LENGTH   = 8;
 
+    // Fields that show up on the printed/emailed ticket — if either a re-import or a
+    // manual admin edit changes any of these, the cached PDF/PNG (and, if already sent,
+    // the emailed copy) is stale and needs to be regenerated/resent.
+    public const TICKET_RELEVANT_FIELDS = [
+        'name', 'email', 'transport_type', 'bus_number', 'is_pic_bus',
+        'total_bus_passengers', 'total_passengers', 'total_vehicles',
+        'pickup_point', 'has_below_two_children', 'additional_members',
+        'additional_vehicles',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (Employee $employee) {

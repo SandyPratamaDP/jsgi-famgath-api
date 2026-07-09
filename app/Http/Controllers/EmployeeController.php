@@ -46,10 +46,14 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee)
     {
         $attributes = $request->validate([
-            'total_vehicles'    => 'sometimes|integer|min:0',
-            'transport_type'    => 'sometimes|in:private_car,bus',
-            'total_passengers'  => 'sometimes|integer|min:1',
-            'switched_from_bus' => 'sometimes|boolean',
+            'total_vehicles'         => 'sometimes|integer|min:0',
+            'transport_type'         => 'sometimes|in:private_car,bus',
+            'total_passengers'       => 'sometimes|integer|min:1',
+            'switched_from_bus'      => 'sometimes|boolean',
+            'total_bus_passengers'   => 'sometimes|integer|min:0',
+            'additional_members'     => 'sometimes|integer|min:0',
+            'additional_vehicles'    => 'sometimes|integer|min:0',
+            'has_below_two_children' => 'sometimes|boolean',
         ]);
 
         if (array_key_exists('total_vehicles', $attributes) && !array_key_exists('transport_type', $attributes)) {
@@ -68,6 +72,26 @@ class EmployeeController extends Controller
         }
 
         $employee->update($attributes);
+
+        // Ticket-relevant data changed (e.g. an admin adjusted participant/vehicle
+        // counts) — the cached PDF/PNG is now stale, so refresh it the same way a
+        // re-import would, instead of leaving it silently out of date.
+        if ($employee->wasChanged(Employee::TICKET_RELEVANT_FIELDS)) {
+            $resets = [];
+            if ($employee->ticket_email_sent_at) {
+                $resets['ticket_email_sent_at'] = null;
+            }
+            if ($employee->isTicketEligible()) {
+                $resets['pdf_filename'] = null;
+            }
+            if ($resets) {
+                $employee->update($resets);
+            }
+            if ($employee->isTicketEligible()) {
+                GenerateEmployeeTicketFiles::dispatch($employee->id);
+            }
+        }
+
         return response()->json(['data' => $employee->fresh()]);
     }
 
@@ -156,15 +180,24 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * The underlying file on disk is overwritten in place whenever a ticket is
+     * (re)generated, with the same filename and no ETag — without an explicit
+     * no-store, browsers apply heuristic freshness off Last-Modified and will
+     * silently keep serving a pre-edit download for hours without even asking
+     * the server, hiding a just-regenerated ticket.
+     */
+    private const NO_CACHE_HEADERS = ['Cache-Control' => 'no-store, must-revalidate'];
+
     public function downloadSinglePdf(Employee $employee)
     {
         if ($cachedPath = $this->pdfService->cachedPath($employee)) {
-            return response()->download($cachedPath, $employee->pdf_filename);
+            return response()->download($cachedPath, $employee->pdf_filename, self::NO_CACHE_HEADERS);
         }
 
         [$bytes, $filename] = $this->pdfService->renderAndCache($employee);
 
-        return response($bytes, 200, [
+        return response($bytes, 200, self::NO_CACHE_HEADERS + [
             'Content-Type'        => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
@@ -173,12 +206,12 @@ class EmployeeController extends Controller
     public function downloadSingleImage(Employee $employee)
     {
         if ($cachedPath = $this->pdfService->cachedImagePath($employee)) {
-            return response()->download($cachedPath, basename($cachedPath));
+            return response()->download($cachedPath, basename($cachedPath), self::NO_CACHE_HEADERS);
         }
 
         [$bytes, $filename] = $this->pdfService->renderImageAndCache($employee);
 
-        return response($bytes, 200, [
+        return response($bytes, 200, self::NO_CACHE_HEADERS + [
             'Content-Type'        => 'image/png',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
