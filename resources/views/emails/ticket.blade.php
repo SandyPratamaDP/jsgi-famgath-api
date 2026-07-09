@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <title>Tiket Family Gathering JSGI 2026</title>
 </head>
-<body style="margin:0; padding:0; background:#eef2f7; font-family: DejaVu Sans, Arial, sans-serif; color:#0f172a;">
-    <div style="max-width:520px; margin:24px auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; overflow:hidden;">
+<body style="margin:0; padding:0; background:#fafbfc; font-family: DejaVu Sans, Arial, sans-serif; color:#0f172a;">
+    <div style="max-width:520px; margin:40px auto 24px; background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; overflow:hidden;">
 
         <div style="background:#0b2447; padding:18px 24px;">
             <div style="color:#ffffff; font-size:16px; font-weight:bold;">Family Gathering JSGI 2026</div>
