@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateEmployeeTicketFiles;
 use App\Jobs\SendEmployeeTicketEmail;
 use App\Models\Employee;
 use App\Services\EmployeeImportService;
@@ -77,10 +78,7 @@ class EmployeeController extends Controller
         // ticket. Only those never sent before — safe to click repeatedly as new
         // imports land.
         $employees = Employee::query()
-            ->where(function ($q) {
-                $q->whereIn('transport_type', ['private_car', 'operational'])
-                  ->orWhere('is_pic_bus', true);
-            })
+            ->ticketEligible()
             ->whereNotNull('email')
             ->whereNull('ticket_email_sent_at')
             ->orderBy('name')
@@ -117,6 +115,45 @@ class EmployeeController extends Controller
         SendEmployeeTicketEmail::dispatch($employee->id);
 
         return response()->json(['message' => 'Email sedang dikirim di background.']);
+    }
+
+    /**
+     * Force a fresh render for one employee — for when their ticket-relevant data
+     * (e.g. participant count) changed without a full Excel re-import. Nulls
+     * pdf_filename first so the employee list's status dot shows "waiting" until
+     * the queued job finishes re-rendering.
+     */
+    public function regenerateSingle(Employee $employee)
+    {
+        if (!$employee->isTicketEligible()) {
+            return response()->json(['message' => 'Karyawan ini tidak memiliki tiket individual.'], 422);
+        }
+
+        $employee->update(['pdf_filename' => null]);
+        GenerateEmployeeTicketFiles::dispatch($employee->id);
+
+        return response()->json(['message' => 'Tiket sedang digenerate ulang di background.']);
+    }
+
+    /**
+     * Force a fresh render for every ticket-eligible employee — for bulk corrections
+     * (e.g. many employees' participant counts changed) without needing a full
+     * Excel re-import.
+     */
+    public function regenerateAll()
+    {
+        $employees = Employee::query()->ticketEligible()->get();
+
+        Employee::whereIn('id', $employees->pluck('id'))->update(['pdf_filename' => null]);
+
+        foreach ($employees as $employee) {
+            GenerateEmployeeTicketFiles::dispatch($employee->id);
+        }
+
+        return response()->json([
+            'message' => 'Regenerasi tiket dimulai di background.',
+            'count'   => $employees->count(),
+        ]);
     }
 
     public function downloadSinglePdf(Employee $employee)

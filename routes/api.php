@@ -38,6 +38,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('tickets/blank',                     [EmployeeController::class, 'blankTicketForm']);
         Route::post('employees/blast-email',           [EmployeeController::class, 'blastEmail']);
         Route::post('employees/{employee}/send-email', [EmployeeController::class, 'sendEmail']);
+        Route::post('employees/regenerate-tickets',           [EmployeeController::class, 'regenerateAll']);
+        Route::post('employees/{employee}/regenerate-ticket', [EmployeeController::class, 'regenerateSingle']);
         Route::get('employees/{employee}/pdf',   [EmployeeController::class, 'downloadSinglePdf']);
         Route::get('employees/{employee}/image', [EmployeeController::class, 'downloadSingleImage']);
         Route::get('employees/{employee}/qr',    [EmployeeController::class, 'downloadQrCode']);

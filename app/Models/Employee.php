@@ -94,4 +94,21 @@ class Employee extends Model
 
         return $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower(trim($term)) . '%']);
     }
+
+    /** Only these employees ever get an individual ticket file — regular bus riders
+     *  share their PIC's manifest ticket and have no pdf_filename of their own. */
+    public function scopeTicketEligible($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereIn('transport_type', ['private_car', 'operational'])
+              ->orWhere('is_pic_bus', true);
+        });
+    }
+
+    public function isTicketEligible(): bool
+    {
+        return $this->transport_type === 'private_car'
+            || $this->transport_type === 'operational'
+            || $this->is_pic_bus;
+    }
 }
