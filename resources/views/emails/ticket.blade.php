@@ -15,7 +15,7 @@
         <div style="padding:24px;">
             <p style="font-size:14px; margin:0 0 12px;">Halo <strong>{{ $employee->name }}</strong>,</p>
 
-            <p style="font-size:13px; line-height:1.6; margin:0 0 12px;">
+            <p style="font-size:13px; line-height:1.6; margin:0 0 12px; text-align:justify;">
                 Berikut kami lampirkan tiket masuk kawasan Ancol untuk acara Family Gathering JSGI 2026 dalam format PDF dan PNG lengkap dengan QR code tiket Anda. Mohon disimpan dan ditunjukkan kepada petugas saat memasuki gebang Ancol.
             </p>
 
@@ -23,12 +23,12 @@
                 <strong>Berlaku:</strong> 11 Juli 2026
             </div>
 
-            <div style="background:#fffbeb; border:1px solid #fbbf24; border-radius:8px; padding:10px 16px; font-size:12px; color:#92400e; margin:0 0 12px;">
+            <div style="background:#fffbeb; border:1px solid #fbbf24; border-radius:8px; padding:10px 16px; font-size:12px; color:#92400e; margin:0 0 12px; text-align:justify;">
                 <strong>Penting:</strong> Tiket ini hanya berlaku sebagai tiket masuk ke area Ancol,
                 bukan tiket wahana lain di luar area tersebut.
             </div>
 
-            <div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; padding:10px 16px; font-size:12px; color:#991b1b; margin:0 0 12px;">
+            <div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; padding:10px 16px; font-size:12px; color:#991b1b; margin:0 0 12px; text-align:justify;">
                 <strong>Perhatian:</strong> Tiket ini bersifat pribadi dan hanya berlaku untuk
                 karyawan yang bersangkutan beserta keluarganya. Tiket dilarang keras untuk
                 diperjualbelikan atau dipindahtangankan kepada pihak lain dalam bentuk apa pun.
