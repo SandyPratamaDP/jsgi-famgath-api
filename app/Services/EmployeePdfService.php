@@ -110,6 +110,26 @@ class EmployeePdfService
         return $deleted;
     }
 
+    /**
+     * Render a blank printable form for manual walk-in use: same "Kendaraan Pribadi" card
+     * layout as a real ticket, but with the name/vehicle/passenger fields left empty for
+     * panitia to fill in by hand. Not tied to any Employee record. The QR is the same local
+     * (server-stored, not fetched from an external API) Ancol gate-entry image already used
+     * for the "local" employee category on real tickets. Not cached — generated fresh each time.
+     */
+    public function renderBlankForm(): string
+    {
+        $pdf = Pdf::loadView('pdf.ticket-blank-form', [
+            'logoData' => $this->buildLogoDataUri(),
+            'qrData'   => $this->ancolQrDataUri('local'),
+        ]);
+
+        $bytes = $pdf->output();
+        unset($pdf);
+
+        return $bytes;
+    }
+
     // ── Internals ─────────────────────────────────────────────────────────────
 
     private function imageFilename(string $pdfFilename): string
@@ -176,7 +196,12 @@ class EmployeePdfService
      */
     private function buildQrDataUri(Employee $employee): string
     {
-        $qrPath = storage_path('app/public/ancol-qr-' . $this->qrCategory($employee) . '.png');
+        return $this->ancolQrDataUri($this->qrCategory($employee));
+    }
+
+    private function ancolQrDataUri(string $category): string
+    {
+        $qrPath = storage_path('app/public/ancol-qr-' . $category . '.png');
 
         return file_exists($qrPath)
             ? 'data:image/png;base64,' . base64_encode(file_get_contents($qrPath))

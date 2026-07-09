@@ -147,6 +147,19 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * Blank printable form for manual walk-in use — not tied to any Employee record.
+     */
+    public function blankTicketForm()
+    {
+        $bytes = $this->pdfService->renderBlankForm();
+
+        return response($bytes, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="tiket_kosong.pdf"',
+        ]);
+    }
+
     public function downloadQrCode(Employee $employee)
     {
         $bytes    = $this->qrService->renderPng($employee);

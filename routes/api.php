@@ -35,6 +35,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Panitia only
     Route::middleware('role:panitia')->group(function () {
         Route::post('import-employees',          [EmployeeController::class, 'import']);
+        Route::get('tickets/blank',                     [EmployeeController::class, 'blankTicketForm']);
         Route::post('employees/blast-email',           [EmployeeController::class, 'blastEmail']);
         Route::post('employees/{employee}/send-email', [EmployeeController::class, 'sendEmail']);
         Route::get('employees/{employee}/pdf',   [EmployeeController::class, 'downloadSinglePdf']);
