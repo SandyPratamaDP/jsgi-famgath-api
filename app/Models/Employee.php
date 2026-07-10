@@ -17,6 +17,7 @@ class Employee extends Model
         'additional_members',
         'additional_vehicles',
         'has_below_two_children',
+        'has_below_one_year_child',
         'transport_type',
         'switched_from_bus',
         'bus_number',
@@ -85,12 +86,25 @@ class Employee extends Model
         return $this->hasMany(WahanaCheckin::class);
     }
 
+    /**
+     * The gate (Ancol) waives tickets under 2 years old, so import already excludes
+     * those children from total_passengers. The rides (wahana) only waive tickets
+     * under 1 year old, so a child aged 1-2 was excluded at the gate but still needs
+     * a wahana ticket — add them back, but only for the wahana headcount, never
+     * persisted to total_passengers itself.
+     */
+    public function needsWahanaHeadcountBonus(): bool
+    {
+        return $this->has_below_two_children && !$this->has_below_one_year_child;
+    }
+
     protected $casts = [
         'total_vehicles'       => 'integer',
         'total_passengers'     => 'integer',
         'additional_members'   => 'integer',
         'additional_vehicles'  => 'integer',
         'has_below_two_children' => 'boolean',
+        'has_below_one_year_child' => 'boolean',
         'bus_number'           => 'integer',
         'is_pic_bus'           => 'boolean',
         'switched_from_bus'    => 'boolean',

@@ -54,6 +54,7 @@ class EmployeeController extends Controller
             'additional_members'     => 'sometimes|integer|min:0',
             'additional_vehicles'    => 'sometimes|integer|min:0',
             'has_below_two_children' => 'sometimes|boolean',
+            'has_below_one_year_child' => 'sometimes|boolean',
         ]);
 
         if (array_key_exists('total_vehicles', $attributes) && !array_key_exists('transport_type', $attributes)) {

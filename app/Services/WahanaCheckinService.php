@@ -31,11 +31,10 @@ class WahanaCheckinService
     {
         return DB::transaction(function () use ($employee, $wahana, $userId) {
             $locked = Employee::whereKey($employee->id)->lockForUpdate()->first();
-            $total  = $locked->total_passengers + $locked->additional_members;
-            $count  = $locked->wahanaCheckins()->where('wahana', $wahana)->count();
+            $state  = $this->wahanaState($locked, $wahana);
 
-            if ($count >= $total) {
-                return ['success' => false, 'state' => $this->wahanaState($locked, $wahana)];
+            if ($state['checked_in'] >= $state['total']) {
+                return ['success' => false, 'state' => $state];
             }
 
             $locked->wahanaCheckins()->create([
@@ -57,7 +56,8 @@ class WahanaCheckinService
         return [
             'id'                 => $employee->id,
             'name'               => $employee->name,
-            'total_passengers'   => $employee->total_passengers,
+            // Wahana-only display: bumped by the below-2/not-below-1 bonus, never persisted.
+            'total_passengers'   => $employee->total_passengers + $this->headcountBonus($employee),
             'additional_members' => $employee->additional_members,
             'checkins'           => [
                 'sea_world' => $this->wahanaState($employee, 'sea_world', $counts),
@@ -68,7 +68,7 @@ class WahanaCheckinService
 
     public function wahanaState(Employee $employee, string $wahana, ?Collection $counts = null): array
     {
-        $total     = $employee->total_passengers + $employee->additional_members;
+        $total     = $employee->total_passengers + $employee->additional_members + $this->headcountBonus($employee);
         $checkedIn = $counts
             ? (int) ($counts[$wahana] ?? 0)
             : $employee->wahanaCheckins()->where('wahana', $wahana)->count();
@@ -78,5 +78,15 @@ class WahanaCheckinService
             'checked_in' => $checkedIn,
             'remaining'  => max($total - $checkedIn, 0),
         ];
+    }
+
+    /**
+     * A child under 2 is already excluded from total_passengers at import (gate rule),
+     * but the rides only waive tickets under 1 — so a 1-2 year old needs a wahana seat
+     * back. This never touches stored data, only the counts this service computes.
+     */
+    private function headcountBonus(Employee $employee): int
+    {
+        return $employee->needsWahanaHeadcountBonus() ? 1 : 0;
     }
 }
