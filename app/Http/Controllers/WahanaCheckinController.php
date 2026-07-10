@@ -3,30 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
-use App\Models\WahanaCheckin;
-use Illuminate\Database\QueryException;
+use App\Services\WahanaCheckinService;
 use Illuminate\Http\Request;
 
 class WahanaCheckinController extends Controller
 {
+    public function __construct(private WahanaCheckinService $wahanaCheckinService) {}
+
     public function search(Request $request)
     {
-        $employees = Employee::search(trim($request->query('query', '')))->orderBy('name')->get();
+        $data = $this->wahanaCheckinService->search(trim($request->query('query', '')));
 
-        return response()->json(['data' => $employees->map(fn (Employee $e) => $this->present($e))]);
+        return response()->json(['data' => $data]);
     }
 
     public function lookup(string $code)
     {
-        $employee = Employee::where('qr_code', $code)
-            ->orWhere('manual_code', Employee::normalizeManualCode($code))
-            ->first();
+        $data = $this->wahanaCheckinService->lookup($code);
 
-        if (!$employee) {
+        if (!$data) {
             return response()->json(['message' => 'Kode tidak ditemukan.'], 404);
         }
 
-        return response()->json(['data' => $this->present($employee)]);
+        return response()->json(['data' => $data]);
     }
 
     public function checkin(Request $request, Employee $employee)
@@ -35,60 +34,15 @@ class WahanaCheckinController extends Controller
             'wahana' => 'required|in:sea_world,samudera',
         ]);
 
-        $existing = $employee->wahanaCheckins()->where('wahana', $data['wahana'])->first();
-        if ($existing) {
+        $result = $this->wahanaCheckinService->checkin($employee, $data['wahana'], $request->user()->id);
+
+        if (!$result['success']) {
             return response()->json([
-                'message' => 'Wahana ini sudah digunakan.',
-                'data'    => $this->presentCheckin($existing),
+                'message' => 'Kuota wahana ini sudah habis.',
+                'data'    => $result['state'],
             ], 409);
         }
 
-        try {
-            $checkin = $employee->wahanaCheckins()->create([
-                'wahana'        => $data['wahana'],
-                'checked_in_by' => $request->user()->id,
-            ]);
-        } catch (QueryException $e) {
-            $existing = $employee->wahanaCheckins()->where('wahana', $data['wahana'])->first();
-
-            return response()->json([
-                'message' => 'Wahana ini sudah digunakan.',
-                'data'    => $existing ? $this->presentCheckin($existing) : null,
-            ], 409);
-        }
-
-        return response()->json(['data' => $this->presentCheckin($checkin)], 201);
-    }
-
-    private function present(Employee $employee): array
-    {
-        $checkins = $employee->wahanaCheckins()->with('checkedInByUser')->get()->keyBy('wahana');
-
-        $forWahana = fn (string $w) => $checkins->has($w)
-            ? $this->presentCheckin($checkins[$w])
-            : ['used' => false, 'checked_in_at' => null, 'checked_in_by' => null];
-
-        return [
-            'id'                 => $employee->id,
-            'name'               => $employee->name,
-            'total_passengers'   => $employee->total_passengers,
-            'additional_members' => $employee->additional_members,
-            'checkins'           => [
-                'sea_world' => $forWahana('sea_world'),
-                'samudera'  => $forWahana('samudera'),
-            ],
-        ];
-    }
-
-    private function presentCheckin(WahanaCheckin $checkin): array
-    {
-        $checkin->loadMissing('checkedInByUser');
-
-        return [
-            'used'          => true,
-            'checked_in_at' => $checkin->created_at,
-            'checked_in_by' => $checkin->checkedInByUser?->display_name
-                               ?? $checkin->checkedInByUser?->username,
-        ];
+        return response()->json(['data' => $result['state']], 201);
     }
 }
