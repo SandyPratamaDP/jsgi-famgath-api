@@ -83,6 +83,8 @@ Two roles, checked by `role:<role>` middleware:
 | 🛡️ `panitia` | Everything — employee data, Excel import, ticket generation/regeneration, blast email, Ancol QR management |
 | 🎟️ `eo` | Gate scanner + wahana check-in only (read employee data, switch transport, check in to Sea World/Samudera) |
 
+🕵️ Every login attempt (success or failure) is recorded to `login_logs` (`LoginLogService`) with username, status, IP, user agent, and a best-effort city/region/country/ISP lookup via ip-api.com (skipped for loopback/private IPs). The frontend never calls this API directly from the browser — it always goes through Next.js's server-side rewrite — so `bootstrap/app.php` trusts `127.0.0.1` as a proxy, letting `$request->ip()` resolve to the real client (forwarded through Next.js from the production nginx in front of it) instead of always logging that internal loopback hop.
+
 ## 📡 API Endpoints
 
 Base path: `/api`
@@ -101,7 +103,7 @@ Base path: `/api`
 |---|---|---|
 | `GET` | `/v1/employees` | List all employees |
 | `GET` | `/v1/employees/search?query=` | Search by name |
-| `PATCH` | `/v1/employees/{id}` | Update transport type/vehicles/passenger counts/additional participants & vehicles/under-2 flag. Automatically clears the cached ticket and re-queues generation whenever a ticket-relevant field actually changes |
+| `PATCH` | `/v1/employees/{id}` | Update transport type/vehicles/passenger counts/additional participants & vehicles/under-2 & under-1 child flags. Automatically clears the cached ticket and re-queues generation whenever a ticket-relevant field actually changes |
 
 ### 🛡️ Employees — Panitia only
 
@@ -126,13 +128,19 @@ Base path: `/api`
 |---|---|---|
 | `GET` | `/v1/wahana/search?query=` | Search employee for check-in |
 | `GET` | `/v1/wahana/{code}` | Look up by QR code or manual code |
-| `POST` | `/v1/wahana/{employee}/checkin` | Check in to `sea_world` or `samudera`; each is one-time-use per employee |
+| `POST` | `/v1/wahana/{employee}/checkin` | Check in to `sea_world` or `samudera`; repeatable up to that employee's per-person quota for that wahana (see below), not one-time-use |
 
 ### 🔳 Ancol gate-entry QR
 
 | Method | Endpoint | Access |
 |---|---|---|
 | `GET` | `/v1/ancol-qr/{category}` | EO + Panitia — fetch the gate-entry QR image for `local`/`expat`/`operational` |
+
+## 🌊 Wahana check-in quota & the under-2/under-1 rule
+
+Each employee's wahana quota is `total_passengers + additional_members`, tracked independently per wahana (`sea_world`, `samudera`) — check-in is repeatable until that many people from the group have been checked in to that specific ride, not a single one-time scan.
+
+Ancol's main gate waives entry for children under 2, so `total_passengers` is already reduced by that count at import (`has_below_two_children`). The rides only waive tickets under 1, though — a child aged 1–2 was excluded from the gate headcount but still needs a wahana seat. `Employee::needsWahanaHeadcountBonus()` (used by `WahanaCheckinService`) adds that seat back automatically (+1) whenever `has_below_two_children` is true and `has_below_one_year_child` is false. This bonus only affects the wahana quota/display — it's never written back to `total_passengers`.
 
 ## 🎟️ Ticket generation & regeneration
 
