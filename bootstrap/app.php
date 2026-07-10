@@ -15,6 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
+
+        // Next.js's rewrite() always calls the API from localhost (see next.config.ts),
+        // and forwards the X-Forwarded-For that the production nginx already sets in
+        // front of it — trust that hop so $request->ip() resolves to the real client
+        // instead of Next.js's own loopback connection.
+        $middleware->trustProxies(at: ['127.0.0.1']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
